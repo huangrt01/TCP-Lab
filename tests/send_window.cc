@@ -57,7 +57,7 @@ int main() {
                 test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
                 test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(len));
                 test.execute(ExpectNoSegment{});
-                test.execute(WriteBytes{string{"a", 2 * N_REPS}});
+                test.execute(WriteBytes{string(2 * N_REPS, 'a')});
                 test.execute(ExpectSegment{}.with_no_flags().with_payload_size(len));
                 test.execute(ExpectNoSegment{});
             }
