@@ -2,6 +2,7 @@
 
 #include "util.hh"
 
+#include <arpa/inet.h>
 #include <iomanip>
 #include <sstream>
 
@@ -144,5 +145,15 @@ std::string IPv4Header::to_string() const {
        << "Checksum: " << +cksum << '\n'
        << "Src addr: " << +src << '\n'
        << "Dst addr: " << +dst << '\n';
+    return ss.str();
+}
+
+std::string IPv4Header::summary() const {
+    stringstream ss{};
+    ss << hex << boolalpha << "IPv" << +ver << ", "
+       << "len=" << +len << ", "
+       << "protocol=" << +proto << ", "
+       << "src=" << inet_ntoa({htobe32(src)}) << ", "
+       << "dst=" << inet_ntoa({htobe32(dst)});
     return ss.str();
 }

@@ -17,6 +17,13 @@
   </member>
   <member kind="function">
     <type></type>
+    <name>rfc826</name>
+    <anchorfile>rfc826</anchorfile>
+    <anchor></anchor>
+    <arglist></arglist>
+  </member>
+  <member kind="function">
+    <type></type>
     <name>rfc6298</name>
     <anchorfile>rfc6298</anchorfile>
     <anchor></anchor>

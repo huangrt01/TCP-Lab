@@ -1,4 +1,4 @@
-#include "tunfd_adapter.hh"
+#include "tcp_over_ip.hh"
 
 #include "ipv4_datagram.hh"
 #include "ipv4_header.hh"
@@ -11,26 +11,19 @@
 
 using namespace std;
 
-//! \details This function first attempts to parse an IP header from the next
-//! payload read from the TUN device, then attempts to parse a TCP segment from
+//! \details This function attempts to parse a TCP segment from
 //! the IP datagram's payload.
 //!
 //! If this succeeds, it then checks that the received segment is related to the
 //! current connection. When a TCP connection has been established, this means
 //! checking that the source and destination ports in the TCP header are correct.
 //!
-//! If the TCP FSM is listening (i.e., TCPOverIPv4OverTunFdAdapter::_listen is `true`)
+//! If the TCP connection is listening (i.e., TCPOverIPv4OverTunFdAdapter::_listen is `true`)
 //! and the TCP segment read from the wire includes a SYN, this function clears the
 //! `_listen` flag and records the source and destination addresses and port numbers
 //! from the TCP header; it uses this information to filter future reads.
 //! \returns a std::optional<TCPSegment> that is empty if the segment was invalid or unrelated
-optional<TCPSegment> TCPOverIPv4OverTunFdAdapter::read() {
-    // is the packet a valid IPv4 datagram?
-    auto ip_dgram = IPv4Datagram{};
-    if (ParseResult::NoError != ip_dgram.parse(FileDescriptor::read())) {
-        return {};
-    }
-
+optional<TCPSegment> TCPOverIPv4Adapter::unwrap_tcp_in_ip(const InternetDatagram &ip_dgram) {
     // is the IPv4 datagram for us?
     // Note: it's valid to bind to address "0" (INADDR_ANY) and reply from actual address contacted
     if (not listening() and (ip_dgram.header().dst != config().source.ipv4_numeric())) {
@@ -77,15 +70,15 @@ optional<TCPSegment> TCPOverIPv4OverTunFdAdapter::read() {
     return tcp_seg;
 }
 
-//! Serializes a TCP segment into an IPv4 datagram, serialize the IPv4 datagram, and send it to the TUN device.
-//! \param[in] seg is the TCP segment to write
-void TCPOverIPv4OverTunFdAdapter::write(TCPSegment &seg) {
+//! Takes a TCP segment, sets port numbers as necessary, and wraps it in an IPv4 datagram
+//! \param[in] seg is the TCP segment to convert
+InternetDatagram TCPOverIPv4Adapter::wrap_tcp_in_ip(TCPSegment &seg) {
     // set the port numbers in the TCP segment
     seg.header().sport = config().source.port();
     seg.header().dport = config().destination.port();
 
     // create an Internet Datagram and set its addresses and length
-    IPv4Datagram ip_dgram;
+    InternetDatagram ip_dgram;
     ip_dgram.header().src = config().source.ipv4_numeric();
     ip_dgram.header().dst = config().destination.ipv4_numeric();
     ip_dgram.header().len = ip_dgram.header().hlen * 4 + seg.header().doff * 4 + seg.payload().size();
@@ -93,9 +86,5 @@ void TCPOverIPv4OverTunFdAdapter::write(TCPSegment &seg) {
     // set payload, calculating TCP checksum using information from IP header
     ip_dgram.payload() = seg.serialize(ip_dgram.header().pseudo_cksum());
 
-    // send
-    FileDescriptor::write(ip_dgram.serialize());
+    return ip_dgram;
 }
-
-//! Specialize LossyFdAdapter to TCPOverIPv4OverTunFdAdapter
-template class LossyFdAdapter<TCPOverIPv4OverTunFdAdapter>;

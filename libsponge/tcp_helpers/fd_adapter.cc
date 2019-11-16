@@ -19,7 +19,7 @@ using namespace std;
 //! the result that future outgoing segments go to the sender of the SYN segment.
 //! \returns a std::optional<TCPSegment> that is empty if the segment was invalid or unrelated
 optional<TCPSegment> TCPOverUDPSocketAdapter::read() {
-    auto datagram = recv();
+    auto datagram = _sock.recv();
 
     // is it for us?
     if (not listening() and (datagram.source_address != config().destination)) {
@@ -50,7 +50,7 @@ optional<TCPSegment> TCPOverUDPSocketAdapter::read() {
 void TCPOverUDPSocketAdapter::write(TCPSegment &seg) {
     seg.header().sport = config().source.port();
     seg.header().dport = config().destination.port();
-    UDPSocket::sendto(config().destination, seg.serialize(0));
+    _sock.sendto(config().destination, seg.serialize(0));
 }
 
 //! Specialize LossyFdAdapter to TCPOverUDPSocketAdapter

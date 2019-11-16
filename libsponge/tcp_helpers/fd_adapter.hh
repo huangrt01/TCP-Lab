@@ -37,19 +37,31 @@ class FdAdapterBase {
     //! \brief Get the current configuration (mutable)
     //! \returns a mutable reference
     FdAdapterConfig &config_mut() { return _cfg; }
+
+    //! Called periodically when time elapses
+    void tick(const size_t) {}
 };
 
 //! \brief A FD adaptor that reads and writes TCP segments in UDP payloads
-class TCPOverUDPSocketAdapter : public FdAdapterBase, public UDPSocket {
+class TCPOverUDPSocketAdapter : public FdAdapterBase {
+  private:
+    UDPSocket _sock;
+
   public:
     //! Construct from a UDPSocket sliced into a FileDescriptor
-    explicit TCPOverUDPSocketAdapter(FileDescriptor &&fd) : UDPSocket(std::move(fd)) {}
+    explicit TCPOverUDPSocketAdapter(UDPSocket &&sock) : _sock(std::move(sock)) {}
 
     //! Attempts to read and return a TCP segment related to the current connection from a UDP payload
     std::optional<TCPSegment> read();
 
     //! Writes a TCP segment into a UDP payload
     void write(TCPSegment &seg);
+
+    //! Access the underlying UDP socket
+    operator UDPSocket &() { return _sock; }
+
+    //! Access the underlying UDP socket
+    operator const UDPSocket &() const { return _sock; }
 };
 
 //! Typedef for TCPOverUDPSocketAdapter

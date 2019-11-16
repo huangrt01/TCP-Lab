@@ -60,6 +60,9 @@ struct IPv4Header {
 
     //! Return a string containing a header in human-readable format
     std::string to_string() const;
+
+    //! Return a string containing a human-readable summary of the header
+    std::string summary() const;
 };
 
 //! \struct IPv4Header
