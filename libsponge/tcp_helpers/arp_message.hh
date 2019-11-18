@@ -1,5 +1,5 @@
 #ifndef SPONGE_LIBSPONGE_ARP_MESSAGE_HH
-#define SPONGE_LIBSPONGE_ARP_MESSAGE__HH
+#define SPONGE_LIBSPONGE_ARP_MESSAGE_HH
 
 #include "ethernet_header.hh"
 #include "ipv4_header.hh"
