@@ -8,21 +8,17 @@ using namespace std;
 
 void get_URL(const string &host, const string &path) {
     TCPSocket sock{};
-    sock.connect(Address(host,"http"));
-    string input("GET "+path+" HTTP/1.1\r\nHost: "+host+"\r\n\r\n");
+    sock.connect(Address(host, "http"));
+    string input("GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n");
     sock.write(input);
     // cout<<input;
     // If you don’t shut down your outgoing byte stream,
     // the server will wait around for a while for you to send
     // additional requests and won’t end its outgoing byte stream either.
     sock.shutdown(SHUT_WR);
-    while(!sock.eof())
-        cout<<sock.read();  
+    while (!sock.eof())
+        cout << sock.read();
     sock.close();
-
-
-    // cerr << "Function called: get_URL(" << host << ", " << path << ").\n";
-    // cerr << "Warning: get_URL() has not been implemented yet.\n";
 }
 
 int main(int argc, char *argv[]) {
