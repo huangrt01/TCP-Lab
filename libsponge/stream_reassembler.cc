@@ -30,11 +30,11 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         if (wSize == data.size() && eof)
             _output.end_input();
         _firstUnassembled += wSize;
-        std::set<pair<size_t, std::string>>::iterator iter = _Unassembled.begin();
+        std::set<typeUnassembled>::iterator iter = _Unassembled.begin();
         // recursive method to make the coding style clear
         if (!empty()) {
-            const std::string &tempData = (*iter).second;
-            const size_t tempIndex = (*iter).first;
+            const std::string &tempData = (*iter).data;
+            const size_t tempIndex = (*iter).index;
             _nUnassembled -= tempData.size();
             _Unassembled.erase(iter);
             push_substring(tempData, tempIndex, eof);
@@ -43,12 +43,21 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         }
     } else {
         //不能直接影响_output的情形，储存的数据提前优化处理
+        size_t resIndex = index;
+        std::string resData = data;
+
         //向右合并
-
-
-        //向左合并
-        _Unassembled.insert(std::pair<size_t, std::string>(index, data));
-        _nUnassembled += data.size();
+        std::set<typeUnassembled>::iterator iter = _Unassembled.lower_bound(typeUnassembled(index,data));
+        if (iter!=_Unassembled.end()){
+            if ((*iter).index < index + data.size()) {
+                resData = string(data.begin(), data.end() - (index + data.size() - (*iter).index)) + (*iter).data;
+                _nUnassembled -= (*iter).data.size();
+                _Unassembled.erase(iter);
+            }
+        }
+        // //向左合并
+        _Unassembled.insert(typeUnassembled(resIndex, resData));
+        _nUnassembled += resData.size();
     }
     return;
 }

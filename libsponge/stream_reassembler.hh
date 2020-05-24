@@ -7,14 +7,26 @@
 #include <map>
 #include <set>
 #include <string>
+#include <algorithm>
+#include <iostream>
+class typeUnassembled{
+  public:
+    size_t index;
+    std::string data;
+    typeUnassembled(size_t _index,std::string _data):index(_index),data(_data){}
+    bool operator <(const typeUnassembled& t1)const{
+      return index<t1.index;
+    }
+};
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
+    
     // Your code here -- add private members as necessary.
     ByteStream _output;  //!< The reassembled in-order byte stream
-    std::set<std::pair<size_t, std::string>> _Unassembled;
+    std::set<typeUnassembled> _Unassembled;
     size_t _firstUnassembled;
     size_t _nUnassembled;
     size_t _capacity;  //!< The maximum number of bytes
