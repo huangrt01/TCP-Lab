@@ -18,6 +18,7 @@ StreamReassembler::StreamReassembler(const size_t capacity)
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
+
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
     _eof = _eof | eof;
     if (data.empty() || index + data.size() <= _firstUnassembled) {
@@ -43,24 +44,43 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         }
     } else {
         //不能直接影响_output的情形，储存的数据提前优化处理
-        size_t resIndex = index;
-        std::string resData = data;
 
-        //向右合并
-        std::set<typeUnassembled>::iterator iter = _Unassembled.lower_bound(typeUnassembled(index,data));
-        if (iter!=_Unassembled.end()){
-            if ((*iter).index < index + data.size()) {
-                resData = string(data.begin(), data.end() - (index + data.size() - (*iter).index)) + (*iter).data;
-                _nUnassembled -= (*iter).data.size();
-                _Unassembled.erase(iter);
-            }
+        
+        // std::pair<std::set<typeUnassembled>::iterator,bool> ret;
+        // ret=_Unassembled.insert(typeUnassembled(index,data));
+        // _nUnassembled+=data.size();
+        //std::set<typeUnassembled>::iterator iter1=ret.first;, 太坑了！返回的不是它本身！！！！！！！！
+        std::set<typeUnassembled>::iterator iter2;
+        size_t resIndex=index;
+        std::string resData=data;
+        for(iter2=_Unassembled.begin();iter2!=_Unassembled.end();iter2++){
+            merge_substring(resIndex,resData,iter2);
         }
-        // //向左合并
-        _Unassembled.insert(typeUnassembled(resIndex, resData));
-        _nUnassembled += resData.size();
+        _Unassembled.insert(typeUnassembled(resIndex,resData));
+        _nUnassembled+=resData.size();
     }
     return;
 }
+void StreamReassembler::merge_substring(size_t &index,std::string &data,std::set<typeUnassembled>::iterator iter2){
+    std::string data2=(*iter2).data;
+    size_t l2=(*iter2).index,r2=l2+data2.size()-1;
+    size_t l1=index,r1=l1+data.size()-1;
+    if(l2>r1+1||l1>r2+1) return;
+    _nUnassembled -= r2-l2+1;
+    _Unassembled.erase(iter2);
+    index=min(l1,l2);
+    if(l1<=l2){
+        if(r2>r1)
+            data+=string(data2.begin()+l2-r1-1,data2.end());
+    }
+    else{
+        data=data2;
+        if(r1>r2)
+            data+=string(data.begin()+l1-r2-1,data.end());
+    }
+    return;
+}
+
 
 size_t StreamReassembler::unassembled_bytes() const { return _nUnassembled; }
 

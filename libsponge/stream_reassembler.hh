@@ -50,6 +50,9 @@ class StreamReassembler {
     //! \param eof whether or not this segment ends with the end of the stream
     void push_substring(const std::string &data, const uint64_t index, const bool eof);
 
+    // 合并两个_Unassembled的子串，利用iter2更新index和data信息，并删除iter2
+    void merge_substring(size_t &index,std::string &data,std::set<typeUnassembled>::iterator iter2);
+
     //! \name Access the reassembled byte stream
     //!@{
     const ByteStream &stream_out() const { return _output; }
