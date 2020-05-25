@@ -47,8 +47,10 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     if (resIndex + resData.size() > firstUnacceptable)
         resData = resData.substr(0, firstUnacceptable - resIndex);
     for (iter2 = _Unassembled.begin(); iter2 != _Unassembled.end();) {
-        merge_substring(resIndex, resData, iter2);
-        _Unassembled.erase(iter2++);  //返回值是下一个节点
+        if(merge_substring(resIndex, resData, iter2))
+            _Unassembled.erase(iter2++);  //返回值是下一个节点
+        else
+            iter2++;
     }
     if (resIndex <= _firstUnassembled) {
         size_t wSize = _output.write(string(resData.begin() + _firstUnassembled - resIndex, resData.end()));
@@ -65,12 +67,13 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     }
     return;
 }
-void StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
+bool StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
+    //return value: 1:successfully merge; 0:fail to merge
     std::string data2 = (*iter2).data;
     size_t l2 = (*iter2).index, r2 = l2 + data2.size() - 1;
     size_t l1 = index, r1 = l1 + data.size() - 1;
     if (l2 > r1 + 1 || l1 > r2 + 1)
-        return;
+        return 0;
     _nUnassembled -= r2 - l2 + 1;
     index = min(l1, l2);
     if (l1 <= l2) {
@@ -81,7 +84,7 @@ void StreamReassembler::merge_substring(size_t &index, std::string &data, std::s
             data2 += std::string(data.begin() + l1 - r2 - 1, data.end());
         data.assign(data2);
     }
-    return;
+    return 1;
 }
 
 size_t StreamReassembler::unassembled_bytes() const { return _nUnassembled; }
