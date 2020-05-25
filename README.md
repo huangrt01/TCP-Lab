@@ -1,3 +1,16 @@
+- [x] Lab 0: networking warmup
+
+- [x] Lab 1: stitching substrings into a byte stream
+
+- [ ] Lab 2: the TCP receiver
+
+- [ ] Lab 3: the TCP sender
+
+- [ ] Lab 4: the TCP connection
+- [ ] Lab 5: the network interface
+- [ ] Lab 6: the IP router 
+
+
 For build prereqs, see [the CS144 VM setup instructions](https://web.stanford.edu/class/cs144/vm_howto).
 
 ## Sponge quickstart

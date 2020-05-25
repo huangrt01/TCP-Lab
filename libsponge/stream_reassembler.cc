@@ -32,11 +32,6 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     size_t firstUnacceptable = _firstUnassembled + (_capacity - _output.buffer_size());
 
     //不能直接影响_output的情形，储存的数据提前优化处理
-
-    // std::pair<std::set<typeUnassembled>::iterator,bool> ret;
-    // ret=_Unassembled.insert(typeUnassembled(index,data));
-    // _nUnassembled+=data.size();
-    // std::set<typeUnassembled>::iterator iter1=ret.first;, 太坑了！返回的不是它本身！！！！！！！！
     std::set<typeUnassembled>::iterator iter2;
     size_t resIndex = index;
     auto resData = std::string(data);
@@ -91,3 +86,10 @@ int StreamReassembler::merge_substring(size_t &index, std::string &data, std::se
 size_t StreamReassembler::unassembled_bytes() const { return _nUnassembled; }
 
 bool StreamReassembler::empty() const { return _nUnassembled == 0; }
+
+
+
+// std::pair<std::set<typeUnassembled>::iterator,bool> ret;
+// ret=_Unassembled.insert(typeUnassembled(index,data));
+// _nUnassembled+=data.size();
+// std::set<typeUnassembled>::iterator iter1=ret.first;, 太坑了！返回的不是它本身！！！！！！！！
