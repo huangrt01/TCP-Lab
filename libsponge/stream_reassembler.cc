@@ -19,7 +19,7 @@ StreamReassembler::StreamReassembler(const size_t capacity)
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 
-void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
+void StreamReassembler::push_substring(const std::string &data, const size_t index, const bool eof) {
     _eof = _eof | eof;
     if (data.size() > _capacity) {
         _eof = 0;
@@ -29,7 +29,7 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
             _output.end_input();
         return;
     }
-    size_t firstUnacceptable = _firstUnassembled+(_capacity-_output.buffer_size());
+    size_t firstUnacceptable = _firstUnassembled + (_capacity - _output.buffer_size());
 
     //不能直接影响_output的情形，储存的数据提前优化处理
 
@@ -39,15 +39,16 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
     // std::set<typeUnassembled>::iterator iter1=ret.first;, 太坑了！返回的不是它本身！！！！！！！！
     std::set<typeUnassembled>::iterator iter2;
     size_t resIndex = index;
-    std::string resData = data;
-    if(resIndex<_firstUnassembled ){
-        resData=resData.substr(_firstUnassembled-resIndex);
-        resIndex=_firstUnassembled;
+    auto resData = std::string(data);
+    if (resIndex < _firstUnassembled) {
+        resData = resData.substr(_firstUnassembled - resIndex);
+        resIndex = _firstUnassembled;
     }
-    if (resIndex+resData.size() > firstUnacceptable)
-        resData=resData.substr(0,firstUnacceptable-resIndex);
-    for (iter2 = _Unassembled.begin(); iter2 != _Unassembled.end(); iter2++) {
+    if (resIndex + resData.size() > firstUnacceptable)
+        resData = resData.substr(0, firstUnacceptable - resIndex);
+    for (iter2 = _Unassembled.begin(); iter2 != _Unassembled.end();) {
         merge_substring(resIndex, resData, iter2);
+        _Unassembled.erase(iter2++);  //返回值是下一个节点
     }
     if (resIndex <= _firstUnassembled) {
         size_t wSize = _output.write(string(resData.begin() + _firstUnassembled - resIndex, resData.end()));
@@ -71,15 +72,14 @@ void StreamReassembler::merge_substring(size_t &index, std::string &data, std::s
     if (l2 > r1 + 1 || l1 > r2 + 1)
         return;
     _nUnassembled -= r2 - l2 + 1;
-    _Unassembled.erase(iter2);
     index = min(l1, l2);
     if (l1 <= l2) {
         if (r2 > r1)
-            data += string(data2.begin() + l2 - r1 - 1, data2.end());
+            data += std::string(data2.begin() + l2 - r1 - 1, data2.end());
     } else {
         if (r1 > r2)
-            data2 += string(data.begin() + l1 - r2 - 1, data.end());
-        data = data2;
+            data2 += std::string(data.begin() + l1 - r2 - 1, data.end());
+        data.assign(data2);
     }
     return;
 }
