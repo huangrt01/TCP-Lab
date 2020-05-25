@@ -47,9 +47,10 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     if (resIndex + resData.size() > firstUnacceptable)
         resData = resData.substr(0, firstUnacceptable - resIndex);
     for (iter2 = _Unassembled.begin(); iter2 != _Unassembled.end();) {
-        if(merge_substring(resIndex, resData, iter2))
-            _Unassembled.erase(iter2++);  //返回值是下一个节点
-        else
+        if (size_t deleteNum = merge_substring(resIndex, resData, iter2)) {  //返回值是删掉重合的bytes数
+            _Unassembled.erase(iter2++);
+            _nUnassembled -= deleteNum;
+        } else
             iter2++;
     }
     if (resIndex <= _firstUnassembled) {
@@ -68,23 +69,23 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     return;
 }
 bool StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
-    //return value: 1:successfully merge; 0:fail to merge
+    // return value: 1:successfully merge; 0:fail to merge
     std::string data2 = (*iter2).data;
     size_t l2 = (*iter2).index, r2 = l2 + data2.size() - 1;
     size_t l1 = index, r1 = l1 + data.size() - 1;
     if (l2 > r1 + 1 || l1 > r2 + 1)
         return 0;
-    _nUnassembled -= r2 - l2 + 1;
     index = min(l1, l2);
+    size_t deleteNum = data2.size();
     if (l1 <= l2) {
         if (r2 > r1)
-            data += std::string(data2.begin() + l2 - r1 - 1, data2.end());
+            data += std::string(data2.begin() + r1 - l2 + 1, data2.end());
     } else {
         if (r1 > r2)
-            data2 += std::string(data.begin() + l1 - r2 - 1, data.end());
+            data2 += std::string(data.begin() + r2 - l1 + 1, data.end());
         data.assign(data2);
     }
-    return 1;
+    return deleteNum;
 }
 
 size_t StreamReassembler::unassembled_bytes() const { return _nUnassembled; }
