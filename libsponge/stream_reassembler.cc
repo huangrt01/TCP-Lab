@@ -68,7 +68,7 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     }
     return;
 }
-bool StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
+int StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
     // return value: 1:successfully merge; 0:fail to merge
     std::string data2 = (*iter2).data;
     size_t l2 = (*iter2).index, r2 = l2 + data2.size() - 1;
