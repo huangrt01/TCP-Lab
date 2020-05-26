@@ -140,17 +140,6 @@ int main() {
         }
 
         {
-            // Segment overflowing the window on both sides is unacceptable.
-            size_t cap = 4;
-            uint32_t isn = 23452;
-            TCPReceiverTestHarness test{cap};
-            test.execute(SegmentArrives{}.with_syn().with_seqno(isn).with_result(SegmentArrives::Result::OK));
-            test.execute(SegmentArrives{}.with_seqno(isn + 1).with_data("ab").with_result(SegmentArrives::Result::OK));
-            test.execute(SegmentArrives{}.with_seqno(isn + 1).with_data("abcdef").with_result(
-                SegmentArrives::Result::OUT_OF_WINDOW));
-        }
-
-        {
             // Segment overflowing the window on left side is acceptable.
             size_t cap = 4;
             uint32_t isn = 23452;
