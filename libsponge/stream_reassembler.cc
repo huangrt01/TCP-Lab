@@ -87,8 +87,6 @@ size_t StreamReassembler::unassembled_bytes() const { return _nUnassembled; }
 
 bool StreamReassembler::empty() const { return _nUnassembled == 0; }
 
-
-
 // std::pair<std::set<typeUnassembled>::iterator,bool> ret;
 // ret=_Unassembled.insert(typeUnassembled(index,data));
 // _nUnassembled+=data.size();

@@ -10,12 +10,14 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
+static const uint64_t UINT32_LEN = (1ul << 32);
+
 //! Transform an "absolute" 64-bit sequence number (zero-indexed) into a WrappingInt32
 //! \param n The input absolute 64-bit sequence number
 //! \param isn The initial sequence number
 WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
-    DUMMY_CODE(n, isn);
-    return WrappingInt32{0};
+    uint32_t N = n & 0xFFFFFFFF;
+    return WrappingInt32{isn + N};
 }
 
 //! Transform a WrappingInt32 into an "absolute" 64-bit sequence number (zero-indexed)
@@ -29,6 +31,11 @@ WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
-    DUMMY_CODE(n, isn, checkpoint);
-    return {};
+    uint32_t offset = n - wrap(checkpoint, isn);
+    uint64_t ret = checkpoint + offset;
+    // 取距离checkpoint最近的值，因此判断的情况是否左移ret
+    //注意位置不够左移的情形！！！
+    if (offset >= (1u << 31) && ret >= UINT32_LEN)
+        ret -= UINT32_LEN;
+    return ret;
 }
