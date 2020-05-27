@@ -10,8 +10,6 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-static const uint64_t UINT32_LEN = (1ul << 32);
-
 //! Transform an "absolute" 64-bit sequence number (zero-indexed) into a WrappingInt32
 //! \param n The input absolute 64-bit sequence number
 //! \param isn The initial sequence number
@@ -36,6 +34,6 @@ uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
     // 取距离checkpoint最近的值，因此判断的情况是否左移ret
     //注意位置不够左移的情形！！！
     if (offset >= (1u << 31) && ret >= UINT32_LEN)
-        ret -= UINT32_LEN;
+        ret -= (1ul << 32);
     return ret;
 }
