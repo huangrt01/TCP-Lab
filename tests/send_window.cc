@@ -57,7 +57,7 @@ int main() {
                 test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
                 test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(len));
                 test.execute(ExpectNoSegment{});
-                test.execute(WriteBytes{string{"a", 2 * N_REPS}});
+                test.execute(WriteBytes{string(2 * N_REPS, 'a')});
                 test.execute(ExpectSegment{}.with_no_flags().with_payload_size(len));
                 test.execute(ExpectNoSegment{});
             }
@@ -79,6 +79,59 @@ int main() {
             test.execute(ExpectNoSegment{});
         }
 
+        {
+            TCPConfig cfg;
+            WrappingInt32 isn(rd());
+            cfg.fixed_isn = isn;
+
+            TCPSenderTestHarness test{"FIN flag occupies space in window", cfg};
+            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(7));
+            test.execute(ExpectNoSegment{});
+            test.execute(WriteBytes{"1234567"});
+            test.execute(Close{});
+            test.execute(ExpectSegment{}.with_no_flags().with_data("1234567"));
+            test.execute(ExpectNoSegment{});  // window is full
+            test.execute(AckReceived{WrappingInt32{isn + 8}}.with_win(1));
+            test.execute(ExpectSegment{}.with_fin(true).with_data(""));
+            test.execute(ExpectNoSegment{});
+        }
+
+        {
+            TCPConfig cfg;
+            WrappingInt32 isn(rd());
+            cfg.fixed_isn = isn;
+
+            TCPSenderTestHarness test{"FIN flag occupies space in window (part II)", cfg};
+            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(7));
+            test.execute(ExpectNoSegment{});
+            test.execute(WriteBytes{"1234567"});
+            test.execute(Close{});
+            test.execute(ExpectSegment{}.with_no_flags().with_data("1234567"));
+            test.execute(ExpectNoSegment{});  // window is full
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(8));
+            test.execute(ExpectSegment{}.with_fin(true).with_data(""));
+            test.execute(ExpectNoSegment{});
+        }
+
+        {
+            TCPConfig cfg;
+            WrappingInt32 isn(rd());
+            cfg.fixed_isn = isn;
+
+            TCPSenderTestHarness test{"Piggyback FIN in segment when space is available", cfg};
+            test.execute(ExpectSegment{}.with_no_flags().with_syn(true).with_payload_size(0).with_seqno(isn));
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(3));
+            test.execute(ExpectNoSegment{});
+            test.execute(WriteBytes{"1234567"});
+            test.execute(Close{});
+            test.execute(ExpectSegment{}.with_no_flags().with_data("123"));
+            test.execute(ExpectNoSegment{});  // window is full
+            test.execute(AckReceived{WrappingInt32{isn + 1}}.with_win(8));
+            test.execute(ExpectSegment{}.with_fin(true).with_data("4567"));
+            test.execute(ExpectNoSegment{});
+        }
     } catch (const exception &e) {
         cerr << e.what() << endl;
         return 1;
