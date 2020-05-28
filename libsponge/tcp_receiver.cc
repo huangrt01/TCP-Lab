@@ -41,7 +41,7 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
         return received;
     if (win_start + win_size - 1 < abs_seqno)
         return received;
-    _reassembler.push_substring(seg.payload().copy(), abs_seqno, hdr.fin);
+    _reassembler.push_substring(seg.payload().copy(), abs_seqno-1, hdr.fin); //忽视syn，所以减1
     size_t ackno_plus=seg.payload().size();
     _ackno = _ackno + static_cast<uint32_t> (ackno_plus);
     return received;
