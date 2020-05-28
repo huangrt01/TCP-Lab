@@ -62,4 +62,6 @@ inline WrappingInt32 operator+(WrappingInt32 a, uint32_t b) { return WrappingInt
 inline WrappingInt32 operator-(WrappingInt32 a, uint32_t b) { return a + -b; }
 //!@}
 
+inline WrappingInt32 operator++(WrappingInt32 &a, int){uint32_t r = a.raw_value(); a=a+1;return WrappingInt32(r); }
+
 #endif  // SPONGE_LIBSPONGE_WRAPPING_INTEGERS_HH
