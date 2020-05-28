@@ -13,14 +13,14 @@ using namespace std;
 bool TCPReceiver::segment_received(const TCPSegment &seg) {
     bool received=0;
     const TCPHeader &hdr = seg.header();
-    if (hdr.syn) {
+    if ((hdr.syn && _syn_received)||(!hdr.syn && !_syn_received)) return false;
+    if (hdr.syn){
         _isn = hdr.seqno;
         _syn_received = true;
         _ackno=_isn;
         received=1;
     }
-    if (!_syn_received)
-        return 0;
+    if (_reassembler.eof()&&hdr.fin) return false;
     uint64_t win_start=0;
     if (ackno()){
         win_start = unwrap(*ackno(), _isn, 0);
@@ -44,7 +44,7 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
     _reassembler.push_substring(seg.payload().copy(), abs_seqno-1, hdr.fin); //忽视syn，所以减1
     _ackno = wrap(_reassembler.first_unassembled_byte(),_isn) +1 ; //+1因为bytestream不给syn标号
     if(hdr.fin) _ackno++;
-    return 1;
+    return true;
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
