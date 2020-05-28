@@ -11,18 +11,21 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 bool TCPReceiver::segment_received(const TCPSegment &seg) {
-    bool received=0;
+    bool received = 0;
     const TCPHeader &hdr = seg.header();
-    if ((hdr.syn && _syn_received)||(!hdr.syn && !_syn_received)) return false;
-    if (hdr.syn){
+    // second syn or fin will be rejected
+    if ((hdr.syn && _syn_received) || (!hdr.syn && !_syn_received))
+        return false;
+    if (hdr.syn) {
         _isn = hdr.seqno;
         _syn_received = true;
-        _ackno=_isn;
-        received=1;
+        _ackno = _isn;
+        received = 1;
     }
-    if (_reassembler.eof()&&hdr.fin) return false;
-    uint64_t win_start=0;
-    if (ackno()){
+    if (_reassembler.eof() && hdr.fin)
+        return false;
+    uint64_t win_start = 0;
+    if (ackno()) {
         win_start = unwrap(*ackno(), _isn, 0);
     }
     uint64_t abs_seqno = unwrap(hdr.seqno, _isn, win_start);
@@ -34,16 +37,21 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
     if (!win_size)
         win_size = 1;
 
-    if(hdr.fin) {_ackno++; received=1;}
-    if(hdr.syn) _ackno++;
-    
+    if (hdr.fin) {
+        _ackno++;
+        received = 1;
+    }
+    if (hdr.syn)
+        _ackno++;
+
     if (abs_seqno + seq_size - 1 < win_start)
         return received;
     if (win_start + win_size - 1 < abs_seqno)
         return received;
-    _reassembler.push_substring(seg.payload().copy(), abs_seqno-1, hdr.fin); //忽视syn，所以减1
-    _ackno = wrap(_reassembler.first_unassembled_byte(),_isn) +1 ; //+1因为bytestream不给syn标号
-    if(hdr.fin) _ackno++;
+    _reassembler.push_substring(seg.payload().copy(), abs_seqno - 1, hdr.fin);  //忽视syn，所以减1
+    _ackno = wrap(_reassembler.first_unassembled_byte(), _isn) + 1;             //+1因为bytestream不给syn标号
+    if (hdr.fin)
+        _ackno++;
     return true;
 }
 
