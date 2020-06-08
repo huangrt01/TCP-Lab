@@ -22,7 +22,7 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _segments_out{}
     , _segments_outstanding{}
     , _nBytes_inflight(0)
-    , _recv_ackno(wrap(0,_isn))
+    , _recv_ackno(0)
     , _timer{retx_timeout}
     , _window_size(1)
     , _consecutive_retransmissions{0}
@@ -48,7 +48,8 @@ void TCPSender::fill_window() {
             seg.header().fin=1;
         }
         else{ // SYN_ACKED
-            uint16_t size=min(_window_size, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
+            uint16_t remaining = _window_size + static_cast<uint16_t>(_recv_ackno - _next_seqno);
+            uint16_t size=min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
             if(size==0) size=1; //zero window probing
             seg.payload()=Buffer(std::move(_stream.read(size)));
             if(_stream.input_ended()){
@@ -71,14 +72,15 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 //! \returns `false` if the ackno appears invalid (acknowledges something the TCPSender hasn't sent yet)
-bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {   
+bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {  
+    uint64_t abs_ackno=unwrap(ackno,_isn,_recv_ackno); 
     if(ackno-next_seqno()>0)return 0;
-    if(ackno-_recv_ackno <= 0) return 1;
+    if(abs_ackno-_recv_ackno <= 0) return 1;
 
     // acknowledges the successful receipt of new data
     _timer._RTO=_timer._initial_RTO;
     _consecutive_retransmissions=0;
-    _recv_ackno=ackno;
+    _recv_ackno=abs_ackno;
    // _next_seqno = unwrap(ackno, _isn, _next_seqno)+window_size;
 
     //如果window_size为0，需要记录下来，"zero window probing", 影响tick()的行为
@@ -93,6 +95,8 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
                 _segments_outstanding.erase(iter++);
                 _timer.start();
             }
+            else
+                iter++;
         }
     }
     // when all outstanding data has been acknowledged, close the timer.

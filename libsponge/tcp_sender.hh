@@ -84,7 +84,7 @@ class TCPSender {
     uint64_t _nBytes_inflight;
 
     //！ last ackno
-    WrappingInt32 _recv_ackno;
+    uint64_t _recv_ackno;
 
     //! TCP retransmission timer
     TCPRetransmissionTimer _timer;
