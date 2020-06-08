@@ -27,7 +27,8 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _window_size(1)
     , _consecutive_retransmissions{0}
     , _stream(capacity) 
-    , _next_seqno(0) {}
+    , _next_seqno(0) 
+    , _fin_sent(0){}
 
 uint64_t TCPSender::bytes_in_flight() const { return _nBytes_inflight; }
 
@@ -43,19 +44,26 @@ void TCPSender::fill_window() {
         return;
     } 
     else {
-        if (_stream.eof() && _next_seqno >= _stream.bytes_written() + 1){
-            //need to send FIN
-            seg.header().fin=1;
+        uint16_t win = _window_size;
+        if (_window_size == 0)
+            win = 1;  // zero window probing
+        uint16_t remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno);
+        if (_stream.eof() && !_fin_sent){
+            if(remaining == 0)
+                return;  //FIN flag occupies space in window
+            seg.header().fin = 1;
+            _fin_sent = 1;
         }
+        else if(_stream.eof())
+            return;
         else{ // SYN_ACKED
-            uint16_t remaining = _window_size + static_cast<uint16_t>(_recv_ackno - _next_seqno);
             uint16_t size=min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
-            if(size==0) size=1; //zero window probing
             seg.payload()=Buffer(std::move(_stream.read(size)));
-            if(_stream.input_ended()){
+            if(seg.length_in_sequence_space()< win && _stream.eof()){ // piggy-back FIN
                 seg.header().fin = 1;
+                _fin_sent=1;
             }
-            else if(!seg.payload().size())
+            if(seg.length_in_sequence_space()==0)
                 return;
         }
     }
@@ -72,7 +80,10 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 //! \returns `false` if the ackno appears invalid (acknowledges something the TCPSender hasn't sent yet)
-bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {  
+bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
+    //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
+    _window_size = window_size;
+
     uint64_t abs_ackno=unwrap(ackno,_isn,_recv_ackno); 
     if(ackno-next_seqno()>0)return 0;
     if(abs_ackno-_recv_ackno <= 0) return 1;
@@ -81,10 +92,6 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _timer._RTO=_timer._initial_RTO;
     _consecutive_retransmissions=0;
     _recv_ackno=abs_ackno;
-   // _next_seqno = unwrap(ackno, _isn, _next_seqno)+window_size;
-
-    //如果window_size为0，需要记录下来，"zero window probing", 影响tick()的行为
-    _window_size = window_size;  
 
     //删掉fully-acknowledged segments
     if(!_segments_outstanding.empty()){

@@ -4,10 +4,12 @@
 
 - [x] Lab 2: the TCP receiver
 
-- [ ] Lab 3: the TCP sender
+- [x] Lab 3: the TCP sender
 
 - [ ] Lab 4: the TCP connection
+
 - [ ] Lab 5: the network interface
+
 - [ ] Lab 6: the IP router 
 
 

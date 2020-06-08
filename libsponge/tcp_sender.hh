@@ -61,7 +61,7 @@ class TCPRetransmissionTimer {
         if (!open())
             start();
         _TO += ms_since_last_tick;
-        if (_TO > _RTO) {
+        if (_TO >= _RTO) {
             close();
             return 1;  // the retransmission timer has expired.
         }
@@ -100,6 +100,9 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno;
+
+    //! the flag of FIN sent
+    bool _fin_sent;
 
   public:
     //! Initialize a TCPSender
