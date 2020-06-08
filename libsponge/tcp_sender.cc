@@ -34,11 +34,15 @@ uint64_t TCPSender::bytes_in_flight() const { return _nBytes_inflight; }
 void TCPSender::fill_window() {
     assert(!_stream.error());
     TCPSegment seg;
-    if (_next_seqno == 0 || _next_seqno==_nBytes_inflight){
-        //state is CLOSE or SYN SENT, need to send SYN
+    if (_next_seqno == 0 ){
+        //state is CLOSE, need to send SYN
         seg.header().syn=1;
-    }
-    else{
+    } 
+    else if (_next_seqno == _nBytes_inflight) {
+        //state is SYN SENT, don't send SYN
+        return;
+    } 
+    else {
         if (_stream.eof() && _next_seqno >= _stream.bytes_written() + 1){
             //need to send FIN
             seg.header().fin=1;
