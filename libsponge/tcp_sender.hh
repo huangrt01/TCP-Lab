@@ -8,6 +8,9 @@
 
 #include <functional>
 #include <queue>
+#include <set>
+#include <cassert>
+
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -15,22 +18,88 @@
 //! segments, keeps track of which segments are still in-flight,
 //! maintains the Retransmission Timer, and retransmits in-flight
 //! segments if the retransmission timer expires.
+struct cmp{
+  bool operator()(const TCPSegment &a, const TCPSegment &b) const{
+      return a.header().seqno.raw_value() < b.header().seqno.raw_value();
+  }
+};
+class TCPRetransmissionTimer {
+  public:
+    //! retransmission timer for the connection
+    unsigned int _initial_RTO;
+
+    //! retransmission timeout
+    unsigned int _RTO;
+
+    //! timeout
+    unsigned int _TO;
+
+    //! state of the timer, 1:open, 0:close
+    bool _open;
+
+    //! Initialize a TCP retransmission timer
+    TCPRetransmissionTimer(const uint16_t retx_timeout)
+        : _initial_RTO(retx_timeout), _RTO(retx_timeout), _TO(0), _open(1) {}
+
+    //! state of the timer
+    bool open() { return _open; }
+
+    //! start the timer
+    void start() {
+        _open = 1;
+        _TO = 0;
+    }
+
+    //! close the timer
+    void close() {
+        _open = 0;
+        _TO = 0;
+    }
+
+    //! tick
+    bool tick(const size_t ms_since_last_tick) {
+        if (!open())
+            start();
+        _TO += ms_since_last_tick;
+        if (_TO > _RTO) {
+            close();
+            return 1;  // the retransmission timer has expired.
+        }
+        return 0;
+    }
+};
+
 class TCPSender {
   private:
     //! our initial sequence number, the number for our SYN.
     WrappingInt32 _isn;
 
     //! outbound queue of segments that the TCPSender wants sent
-    std::queue<TCPSegment> _segments_out{};
+    std::queue<TCPSegment> _segments_out;
 
-    //! retransmission timer for the connection
-    unsigned int _initial_retransmission_timeout;
+    //! outstanding segments that the TCPSender may resend
+    std::set<TCPSegment,cmp> _segments_outstanding;
+
+    //! bytes in flight
+    uint64_t _nBytes_inflight;
+
+    //！ last ackno
+    WrappingInt32 _recv_ackno;
+
+    //! TCP retransmission timer
+    TCPRetransmissionTimer _timer;
+
+    //! notify the window size
+    uint16_t _window_size;
+
+    //! consecutive retransmissions
+    unsigned int _consecutive_retransmissions;
 
     //! outgoing stream of bytes that have not yet been sent
     ByteStream _stream;
 
     //! the (absolute) sequence number for the next byte to be sent
-    uint64_t _next_seqno{0};
+    uint64_t _next_seqno;
 
   public:
     //! Initialize a TCPSender
