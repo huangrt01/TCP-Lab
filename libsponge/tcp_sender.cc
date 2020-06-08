@@ -26,44 +26,41 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _timer{retx_timeout}
     , _window_size(1)
     , _consecutive_retransmissions{0}
-    , _stream(capacity) 
-    , _next_seqno(0) 
-    , _fin_sent(0){}
+    , _stream(capacity)
+    , _next_seqno(0)
+    , _fin_sent(0) {}
 
 uint64_t TCPSender::bytes_in_flight() const { return _nBytes_inflight; }
 
 void TCPSender::fill_window() {
     assert(!_stream.error());
     TCPSegment seg;
-    if (_next_seqno == 0 ){
-        //state is CLOSE, need to send SYN
-        seg.header().syn=1;
-    } 
-    else if (_next_seqno == _nBytes_inflight) {
-        //state is SYN SENT, don't send SYN
+    if (_next_seqno == 0) {
+        // state is CLOSE, need to send SYN
+        seg.header().syn = 1;
+    } else if (_next_seqno == _nBytes_inflight) {
+        // state is SYN SENT, don't send SYN
         return;
-    } 
-    else {
+    } else {
         uint16_t win = _window_size;
         if (_window_size == 0)
             win = 1;  // zero window probing
         uint16_t remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno);
-        if (_stream.eof() && !_fin_sent){
-            if(remaining == 0)
-                return;  //FIN flag occupies space in window
+        if (_stream.eof() && !_fin_sent) {
+            if (remaining == 0)
+                return;  // FIN flag occupies space in window
             seg.header().fin = 1;
             _fin_sent = 1;
-        }
-        else if(_stream.eof())
+        } else if (_stream.eof())
             return;
-        else{ // SYN_ACKED
-            uint16_t size=min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
-            seg.payload()=Buffer(std::move(_stream.read(size)));
-            if(seg.length_in_sequence_space()< win && _stream.eof()){ // piggy-back FIN
+        else {  // SYN_ACKED
+            uint16_t size = min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
+            seg.payload() = Buffer(std::move(_stream.read(size)));
+            if (seg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
                 seg.header().fin = 1;
-                _fin_sent=1;
+                _fin_sent = 1;
             }
-            if(seg.length_in_sequence_space()==0)
+            if (seg.length_in_sequence_space() == 0)
                 return;
         }
     }
@@ -84,45 +81,46 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
     _window_size = window_size;
 
-    uint64_t abs_ackno=unwrap(ackno,_isn,_recv_ackno); 
-    if(ackno-next_seqno()>0)return 0;
-    if(abs_ackno-_recv_ackno <= 0) return 1;
+    uint64_t abs_ackno = unwrap(ackno, _isn, _recv_ackno);
+    if (ackno - next_seqno() > 0)
+        return 0;
+    if (abs_ackno - _recv_ackno <= 0)
+        return 1;
 
     // acknowledges the successful receipt of new data
-    _timer._RTO=_timer._initial_RTO;
-    _consecutive_retransmissions=0;
-    _recv_ackno=abs_ackno;
+    _timer._RTO = _timer._initial_RTO;
+    _consecutive_retransmissions = 0;
+    _recv_ackno = abs_ackno;
 
     //删掉fully-acknowledged segments
-    if(!_segments_outstanding.empty()){
+    if (!_segments_outstanding.empty()) {
         std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
         while (iter != _segments_outstanding.end()) {
             if (ackno - iter->header().seqno >= static_cast<int32_t>(iter->length_in_sequence_space())) {
                 _nBytes_inflight -= iter->length_in_sequence_space();
                 _segments_outstanding.erase(iter++);
                 _timer.start();
-            }
-            else
+            } else
                 iter++;
         }
     }
     // when all outstanding data has been acknowledged, close the timer.
-    if(_segments_outstanding.empty())
+    if (_segments_outstanding.empty())
         _timer.close();
     return 1;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
-void TCPSender::tick(const size_t ms_since_last_tick) { 
-    if(!_timer.tick(ms_since_last_tick))
+void TCPSender::tick(const size_t ms_since_last_tick) {
+    if (!_timer.tick(ms_since_last_tick))
         return;
-    //timer has expired
-    if(_segments_outstanding.empty())
+    // timer has expired
+    if (_segments_outstanding.empty())
         return;
     // retransmit the outstanding segment with the lowest sequence number
-    std::set<TCPSegment, cmp>::iterator iter=_segments_outstanding.begin();
+    std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
     _segments_out.push(*iter);
-    if(_window_size){
+    if (_window_size) {
         _consecutive_retransmissions++;
         _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy networks to
                            // avoid further gumming up the works
@@ -134,7 +132,7 @@ unsigned int TCPSender::consecutive_retransmissions() const { return _consecutiv
 
 void TCPSender::send_empty_segment() {
     TCPSegment seg;
-    seg.header().seqno=wrap(_next_seqno,_isn);
+    seg.header().seqno = wrap(_next_seqno, _isn);
     assert(!seg.length_in_sequence_space());
     _segments_out.push(seg);
 }
