@@ -16,16 +16,16 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
     // second syn or fin will be rejected
     if ((hdr.syn && _syn_received) || (!hdr.syn && !_syn_received))
         return false;
+    if (_reassembler.eof() && hdr.fin)
+        return false;
     if (hdr.syn) {
         _isn = hdr.seqno;
         _syn_received = true;
         _ackno = _isn;
         received = 1;
     }
-    if (_reassembler.eof() && hdr.fin)
-        return false;
     uint64_t win_start = 0;
-    if (ackno()) {
+    if (ackno().has_value()) {
         win_start = unwrap(*ackno(), _isn, 0);
     }
     uint64_t abs_seqno = unwrap(hdr.seqno, _isn, win_start);
