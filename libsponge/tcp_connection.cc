@@ -52,6 +52,10 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) newseg.header().rst=1;
         _segments_out.push(newseg);
     }
+    else if(seg.length_in_sequence_space()){
+        send_ack_back();
+        return;
+    }
 }
 
 bool TCPConnection::active() const { return _active; }
