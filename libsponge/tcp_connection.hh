@@ -23,8 +23,17 @@ class TCPConnection {
     bool _active{true};
     size_t _ms_since_last_segment_received{0};
 
-    //send from _sender.segments_out() to _segments_out
-    void send(bool rst);
+    //process TCPSegment basically
+    void popTCPSegment(TCPSegment &seg,bool rst);
+
+    //send ack back
+    void send_ack_back(){
+        _sender.send_empty_segment();
+        TCPSegment newseg;
+        popTCPSegment(newseg, 0);
+        newseg.header().ack = 1;
+        _segments_out.push(newseg);
+    }
 
   public:
     //! \name "Input" interface for the writer

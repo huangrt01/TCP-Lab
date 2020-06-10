@@ -28,6 +28,7 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _consecutive_retransmissions{0}
     , _stream(capacity)
     , _next_seqno(0)
+    , _syn_sent(0)
     , _fin_sent(0) {}
 
 uint64_t TCPSender::bytes_in_flight() const { return _nBytes_inflight; }
@@ -38,6 +39,7 @@ void TCPSender::fill_window() {
     if (_next_seqno == 0) {
         // state is CLOSE, need to send SYN
         seg.header().syn = 1;
+        _syn_sent=1;
     } else if (_next_seqno == _nBytes_inflight) {
         // state is SYN SENT, don't send SYN
         return;

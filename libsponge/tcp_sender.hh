@@ -100,6 +100,9 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno;
 
+    //! the flag of SYN sent
+    bool _syn_sent;
+
     //! the flag of FIN sent
     bool _fin_sent;
 
@@ -158,6 +161,10 @@ class TCPSender {
     //! \brief relative seqno for the next byte to be sent
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
+
+    bool syn_sent() const {return _syn_sent;}
+
+    bool fin_sent() const {return _fin_sent;}
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
