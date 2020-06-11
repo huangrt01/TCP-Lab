@@ -35,11 +35,11 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             send_ack_back();
             return;
         }
-        _sender.fill_window();
         while (!_sender.segments_out().empty()) {
             TCPSegment newseg;
             popTCPSegment(newseg, 0);
             _segments_out.push(newseg);
+            _sender.fill_window();
         }
     }
     if(!_receiver.segment_received(seg)){
@@ -49,7 +49,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
 
     if (seg.header().syn) {
         if (!_sender.syn_sent()) {  // send SYN+ACK
-            _sender.fill_window();
+            connect();
+            return;
         }
         if (_sender.segments_out().empty())  // send ACK
             _sender.send_empty_segment();   

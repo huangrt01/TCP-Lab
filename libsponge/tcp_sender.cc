@@ -104,7 +104,6 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
             if (ackno - iter->header().seqno >= static_cast<int32_t>(iter->length_in_sequence_space())) {
                 _nBytes_inflight -= iter->length_in_sequence_space();
                 _segments_outstanding.erase(iter++);
-                _timer.start();
             } else
                 iter++;
         }
@@ -113,10 +112,8 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     fill_window();
 
     // any outstanding segment, restart the timer.
-    if (!_segments_outstanding.empty()){
-        if(!_timer.open())
-            _timer.start();
-    }
+    if (!_segments_outstanding.empty())
+        _timer.start();
     else
         _timer.close();
     return 1;
