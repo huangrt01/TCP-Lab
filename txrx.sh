@@ -108,6 +108,8 @@ _rt_listen () {
 }
 
 _rt_connect () {
+    echo "$3 !!!!"
+    echo "$4 !!!!"
     $3 $4 ${SERVER_PORT} >"$1" <"$2" || { echo "Error in _rt_connect"; exit 1; }
 }
 

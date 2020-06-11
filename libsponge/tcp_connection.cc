@@ -35,6 +35,13 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             send_ack_back();
             return;
         }
+        _sender.fill_window();
+        while (!_sender.segments_out().empty()) {
+            TCPSegment newseg;
+            popTCPSegment(newseg, 0);
+            _segments_out.push(newseg);
+            _sender.fill_window();
+        }
     }
 
     if(!_receiver.segment_received(seg)){
@@ -75,10 +82,11 @@ bool TCPConnection::active() const { return _active; }
 size_t TCPConnection::write(const string &data) {
     size_t size=_sender.stream_in().write(data);
     _sender.fill_window();
-    if (!_sender.segments_out().empty()) {
+    while (!_sender.segments_out().empty()) {
         TCPSegment seg;
         popTCPSegment(seg, 0);
         _segments_out.push(seg);
+        _sender.fill_window();
     }
     test_end();
     return size;
@@ -183,5 +191,4 @@ void TCPConnection::test_end(){
         //bytes_in_flight==0 => state: FIN_ACKED
         _active &= _linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout);
     }
-  
 }
