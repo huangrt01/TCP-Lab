@@ -119,6 +119,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
     size_t time_left = ms_since_last_tick;
     bool time_expire=0;
     while (_timer.tick(time_left)){
+    //    fill_window(); //test fsm_retx_relaxed
         time_expire=1;
     }
 

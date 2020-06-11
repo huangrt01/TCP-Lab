@@ -45,7 +45,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     if (seg.header().syn) {
         if (!_sender.syn_sent()) {  // send SYN+ACK
             _sender.fill_window();
-        } else if (_sender.segments_out().empty())  // send ACK
+        }
+        if (_sender.segments_out().empty())  // send ACK
             _sender.send_empty_segment();   
         TCPSegment newseg;
         popTCPSegment(newseg, 0);
@@ -55,7 +56,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     else if(seg.header().fin){
         if(!_sender.fin_sent())      //send FIN+ACK
             _sender.fill_window();
-        else if (_sender.segments_out().empty())     //send ACK
+        if (_sender.segments_out().empty())     //send ACK
             _sender.send_empty_segment();  
         TCPSegment newseg;
         popTCPSegment(newseg, 0);
@@ -142,6 +143,9 @@ void TCPConnection::popTCPSegment(TCPSegment &seg,bool rst){
     _sender.segments_out().pop();
     if (rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
         seg.header().rst = true;
+        _sender.stream_in().set_error();
+        _receiver.stream_out().set_error();
+        _active = 0;
     } else {
         if (_receiver.ackno().has_value()) {
             seg.header().ackno = _receiver.ackno().value();
@@ -173,9 +177,11 @@ void TCPConnection::send_ack_back(){
 
 //test the end of TCP connection
 void TCPConnection::test_end(){
-    if (_receiver.stream_out().eof() && !_sender.fin_sent())
+    if (_receiver.stream_out().eof() && !_sender.stream_in().eof())
         _linger_after_streams_finish = false;
-    if(_receiver.stream_out().eof() && _sender.stream_in().eof()){
+    if(_receiver.stream_out().eof() && _sender.stream_in().eof() && _sender.bytes_in_flight()==0 && _sender.fin_sent()){
+        //bytes_in_flight==0 => state: FIN_ACKED
         _active &= _linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout);
     }
+  
 }
