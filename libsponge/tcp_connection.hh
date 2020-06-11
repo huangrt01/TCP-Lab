@@ -29,6 +29,9 @@ class TCPConnection {
     //send ack back
     void send_ack_back();
 
+    //test the end of TCP connection
+    void test_end();
+
   public:
     //! \name "Input" interface for the writer
     //!@{

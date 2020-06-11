@@ -21,7 +21,8 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 
 size_t TCPConnection::time_since_last_segment_received() const { return _ms_since_last_segment_received; }
 
-void TCPConnection::segment_received(const TCPSegment &seg) { 
+void TCPConnection::segment_received(const TCPSegment &seg) {
+    _ms_since_last_segment_received = 0;
     if(seg.header().rst){
         _active=0;
         _sender.stream_in().set_error();
@@ -36,28 +37,26 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         }
     }
 
-    if(_receiver.segment_received(seg))
-        _ms_since_last_segment_received=0;
-    else{
+    if(!_receiver.segment_received(seg)){
         send_ack_back();
         return;
     }
 
     if (seg.header().syn) {
-        if (!_sender.syn_sent()) {
-            _sender.fill_window();        //SYN+ACK
-        }
-        else if(_sender.segments_out().empty())
-            _sender.send_empty_segment();   //ACK
+        if (!_sender.syn_sent()) {  // send SYN+ACK
+            _sender.fill_window();
+        } else if (_sender.segments_out().empty())  // send ACK
+            _sender.send_empty_segment();   
         TCPSegment newseg;
         popTCPSegment(newseg, 0);
         newseg.header().ack = 1;
         _segments_out.push(newseg);
     }
     else if(seg.header().fin){
-        _sender.fill_window();
-        if (_sender.segments_out().empty())
-            _sender.send_empty_segment();  // ACK
+        if(!_sender.fin_sent())      //send FIN+ACK
+            _sender.fill_window();
+        else if (_sender.segments_out().empty())     //send ACK
+            _sender.send_empty_segment();  
         TCPSegment newseg;
         popTCPSegment(newseg, 0);
         newseg.header().ack = 1;
@@ -67,6 +66,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         send_ack_back();
         return;
     }
+    test_end();
 }
 
 bool TCPConnection::active() const { return _active; }
@@ -79,6 +79,7 @@ size_t TCPConnection::write(const string &data) {
         popTCPSegment(seg, 0);
         _segments_out.push(seg);
     }
+    test_end();
     return size;
 }
 
@@ -91,6 +92,7 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
         popTCPSegment(seg, 0);
         _segments_out.push(seg);
     }
+    test_end();
 }
 
 void TCPConnection::end_input_stream() {
@@ -101,6 +103,7 @@ void TCPConnection::end_input_stream() {
         popTCPSegment(seg, 0);
         _segments_out.push(seg);
     }
+    test_end();
 }
 
 void TCPConnection::connect() {
@@ -166,4 +169,13 @@ void TCPConnection::send_ack_back(){
     popTCPSegment(newseg, 0);
     newseg.header().ack = 1;
     _segments_out.push(newseg);
+}
+
+//test the end of TCP connection
+void TCPConnection::test_end(){
+    if (_receiver.stream_out().eof() && !_sender.fin_sent())
+        _linger_after_streams_finish = false;
+    if(_receiver.stream_out().eof() && _sender.stream_in().eof()){
+        _active &= _linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout);
+    }
 }
