@@ -47,17 +47,9 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         return;
     }
 
-    if (seg.header().syn) {
-        if (!_sender.syn_sent()) {  // send SYN+ACK
-            connect();
-            return;
-        }
-        if (_sender.segments_out().empty())  // send ACK
-            _sender.send_empty_segment();   
-        TCPSegment newseg;
-        popTCPSegment(newseg, 0);
-        newseg.header().ack = 1;
-        _segments_out.push(newseg);
+    if (seg.header().syn && !_sender.syn_sent()) {
+        connect();
+        return;
     }
     else if(seg.header().fin){
         if(!_sender.fin_sent())      //send FIN+ACK
@@ -108,16 +100,7 @@ void TCPConnection::end_input_stream() {
 
 void TCPConnection::connect() {
     _sender.fill_window();
-    TCPSegment seg;
-    if (!_sender.segments_out().empty()) {
-        popTCPSegment(seg, 0);
-        _segments_out.push(seg);
-    }
-    else{ //false connection
-        _sender.send_empty_segment();
-        popTCPSegment(seg,1);
-        _segments_out.push(seg);
-    }
+    fill_queue(0);
 }
 
 TCPConnection::~TCPConnection() {

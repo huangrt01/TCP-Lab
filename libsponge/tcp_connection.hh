@@ -22,6 +22,7 @@ class TCPConnection {
     bool _linger_after_streams_finish{true};
     bool _active{true};
     size_t _ms_since_last_segment_received{0};
+    bool _connect_initiated{0};
 
     //process TCPSegment basically
     void popTCPSegment(TCPSegment &seg,bool rst);
