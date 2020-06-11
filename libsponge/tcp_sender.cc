@@ -54,25 +54,26 @@ void TCPSender::fill_window() {
 
     uint16_t remaining;
     while ((remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno))){
+        TCPSegment newseg;
         if (_stream.eof() && !_fin_sent) {
             if (remaining == 0)
                 return;  // FIN flag occupies space in window
-            seg.header().fin = 1;
+            newseg.header().fin = 1;
             _fin_sent = 1;
-            send_non_empty_segment(seg);
+            send_non_empty_segment(newseg);
             return;
         } else if (_stream.eof())
             return;
         else {  // SYN_ACKED
             uint16_t size = min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
-            seg.payload() = Buffer(std::move(_stream.read(size)));
-            if (seg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
-                seg.header().fin = 1;
+            newseg.payload() = Buffer(std::move(_stream.read(size)));
+            if (newseg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
+                newseg.header().fin = 1;
                 _fin_sent = 1;
             }
-            if (seg.length_in_sequence_space() == 0)
+            if (newseg.length_in_sequence_space() == 0)
                 return;
-            send_non_empty_segment(seg);
+            send_non_empty_segment(newseg);
         }
     }
 }
@@ -82,13 +83,16 @@ void TCPSender::fill_window() {
 //! \returns `false` if the ackno appears invalid (acknowledges something the TCPSender hasn't sent yet)
 bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
-    _window_size = window_size;
-
     uint64_t abs_ackno = unwrap(ackno, _isn, _recv_ackno);
-    if (ackno - next_seqno() > 0)
+    if (ackno - next_seqno() > 0){
         return 0;
-    if (abs_ackno - _recv_ackno <= 0)
+    }
+    _window_size = window_size;
+    if (abs_ackno - _recv_ackno <= 0){
         return 1;
+    }
+
+    
 
     // acknowledges the successful receipt of new data
     _timer._RTO = _timer._initial_RTO;
@@ -135,9 +139,9 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
                                    // networks to avoid further gumming up the works
             }
             _timer.start();
-            if (_segments_outstanding.empty())
-                _timer.close();
         }
+        if (_segments_outstanding.empty())
+            _timer.close();
     }  
 }
 

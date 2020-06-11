@@ -23,9 +23,10 @@ class TCPConnection {
     bool _active{true};
     size_t _ms_since_last_segment_received{0};
     bool _connect_initiated{0};
+    bool _rst{0};
 
     //process TCPSegment basically
-    void popTCPSegment(TCPSegment &seg,bool rst);
+    void popTCPSegment(TCPSegment &seg);
 
     //send ack back
     void send_ack_back();
@@ -34,7 +35,7 @@ class TCPConnection {
     void test_end();
 
     // fill queue from _sender.segments_out() to _segments_out
-    void fill_queue(bool rst);
+    void fill_queue();
 
   public:
     //! \name "Input" interface for the writer

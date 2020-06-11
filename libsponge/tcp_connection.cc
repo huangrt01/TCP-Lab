@@ -23,28 +23,30 @@ size_t TCPConnection::time_since_last_segment_received() const { return _ms_sinc
 
 void TCPConnection::segment_received(const TCPSegment &seg) {
     _ms_since_last_segment_received = 0;
-    if(seg.header().rst){
-        _active=0;
-        _sender.stream_in().set_error();
-        _receiver.stream_out().set_error();
-        return;
-    }
-
     if (seg.header().ack && _sender.syn_sent()) {
         if(!_sender.ack_received(seg.header().ackno, seg.header().win)){  // fsm_ack_rst_relaxed: ack in the future -> sent ack back
             send_ack_back();
             return;
         }
         while (!_sender.segments_out().empty()) {
-            fill_queue(0);
+            fill_queue();
             _sender.fill_window();
         }
     }
+    // ignore out of window RST
+    if (seg.header().rst) {
+        _rst = 1;
+        _active = 0;
+        _sender.stream_in().set_error();
+        _receiver.stream_out().set_error();
+        return;
+    }
+
     if(!_receiver.segment_received(seg)){
         send_ack_back();
         return;
     }
-
+    
     if (seg.header().syn && !_sender.syn_sent()) {
         connect();
         return;
@@ -54,7 +56,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             _sender.fill_window();
         if (_sender.segments_out().empty())     //send ACK
             _sender.send_empty_segment();  
-        fill_queue(0);
+        fill_queue();
     }
     else if(seg.length_in_sequence_space()){
         send_ack_back();
@@ -69,7 +71,7 @@ size_t TCPConnection::write(const string &data) {
     size_t size=_sender.stream_in().write(data);
     _sender.fill_window();
     if (!_sender.segments_out().empty()) 
-        fill_queue(0);
+        fill_queue();
     test_end();
     return size;
 }
@@ -78,20 +80,20 @@ size_t TCPConnection::write(const string &data) {
 void TCPConnection::tick(const size_t ms_since_last_tick) { 
     _sender.tick(ms_since_last_tick); 
     _ms_since_last_segment_received+=ms_since_last_tick;
-    fill_queue(0);
+    fill_queue();
     test_end();
 }
 
 void TCPConnection::end_input_stream() {
     _sender.stream_in().end_input();
     _sender.fill_window();
-    fill_queue(0);
+    fill_queue();
     test_end();
 }
 
 void TCPConnection::connect() {
     _sender.fill_window();
-    fill_queue(0);
+    fill_queue();
 }
 
 TCPConnection::~TCPConnection() {
@@ -99,19 +101,22 @@ TCPConnection::~TCPConnection() {
         if (active()) {
             cerr << "Warning: Unclean shutdown of TCPConnection\n";
             // send a RST segment to the peer
-            fill_queue(1);
+            _rst=1;
+            _sender.send_empty_segment();
+            fill_queue();
         }
     } catch (const exception &e) {
         std::cerr << "Exception destructing TCP FSM: " << e.what() << std::endl;
     }
 }
 
-void TCPConnection::popTCPSegment(TCPSegment &seg,bool rst){
+void TCPConnection::popTCPSegment(TCPSegment &seg){
     // send a segment
     // reset condition
     seg = _sender.segments_out().front();
     _sender.segments_out().pop();
-    if (rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
+    if (_rst || seg.header().rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
+        _rst=1;
         seg.header().rst = true;
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
@@ -138,7 +143,7 @@ void TCPConnection::send_ack_back(){
     //sometimes the TCPSender will send a segment in ack_received()
     if(_sender.segments_out().empty())
         _sender.send_empty_segment();
-    fill_queue(0);
+    fill_queue();
 }
 
 //test the end of TCP connection
@@ -152,10 +157,10 @@ void TCPConnection::test_end(){
 }
 
 //fill queue from _sender.segments_out() to _segments_out
-void TCPConnection::fill_queue(bool rst){
+void TCPConnection::fill_queue(){
     while (!_sender.segments_out().empty()) {
         TCPSegment seg;
-        popTCPSegment(seg, rst);
+        popTCPSegment(seg);
         _segments_out.push(seg);
     }
 }
