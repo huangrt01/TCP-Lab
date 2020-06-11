@@ -40,19 +40,27 @@ void TCPSender::fill_window() {
         // state is CLOSE, need to send SYN
         seg.header().syn = 1;
         _syn_sent=1;
+        send_non_empty_segment(seg);
+        return;
     } else if (_next_seqno == _nBytes_inflight) {
         // state is SYN SENT, don't send SYN
         return;
-    } else {
-        uint16_t win = _window_size;
-        if (_window_size == 0)
-            win = 1;  // zero window probing
-        uint16_t remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno);
+    } 
+
+    //send multiple non-empty segments
+    uint16_t win = _window_size;
+    if (_window_size == 0)
+        win = 1;  // zero window probing
+
+    uint16_t remaining;
+    while ((remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno))){
         if (_stream.eof() && !_fin_sent) {
             if (remaining == 0)
                 return;  // FIN flag occupies space in window
             seg.header().fin = 1;
             _fin_sent = 1;
+            send_non_empty_segment(seg);
+            return;
         } else if (_stream.eof())
             return;
         else {  // SYN_ACKED
@@ -64,18 +72,9 @@ void TCPSender::fill_window() {
             }
             if (seg.length_in_sequence_space() == 0)
                 return;
+            send_non_empty_segment(seg);
         }
     }
-    seg.header().win = _window_size;
-    seg.header().seqno = wrap(_next_seqno, _isn);
-
-    _next_seqno += seg.length_in_sequence_space();
-    _nBytes_inflight += seg.length_in_sequence_space();
-
-    _segments_out.push(seg);
-    _segments_outstanding.insert(seg);
-    if(!_timer.open())
-        _timer.start();
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -148,4 +147,17 @@ void TCPSender::send_empty_segment() {
     TCPSegment seg;
     seg.header().seqno = wrap(_next_seqno, _isn);
     _segments_out.push(seg);
+}
+
+void TCPSender::send_non_empty_segment(TCPSegment &seg){
+    seg.header().win = _window_size;
+    seg.header().seqno = wrap(_next_seqno, _isn);
+
+    _next_seqno += seg.length_in_sequence_space();
+    _nBytes_inflight += seg.length_in_sequence_space();
+
+    _segments_out.push(seg);
+    _segments_outstanding.insert(seg);
+    if (!_timer.open())
+        _timer.start();
 }

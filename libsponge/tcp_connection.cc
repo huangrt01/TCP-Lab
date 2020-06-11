@@ -36,9 +36,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             return;
         }
         while (!_sender.segments_out().empty()) {
-            TCPSegment newseg;
-            popTCPSegment(newseg, 0);
-            _segments_out.push(newseg);
+            fill_queue(0);
             _sender.fill_window();
         }
     }
@@ -56,10 +54,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             _sender.fill_window();
         if (_sender.segments_out().empty())     //send ACK
             _sender.send_empty_segment();  
-        TCPSegment newseg;
-        popTCPSegment(newseg, 0);
-        newseg.header().ack = 1;
-        _segments_out.push(newseg);
+        fill_queue(0);
     }
     else if(seg.length_in_sequence_space()){
         send_ack_back();
@@ -73,12 +68,8 @@ bool TCPConnection::active() const { return _active; }
 size_t TCPConnection::write(const string &data) {
     size_t size=_sender.stream_in().write(data);
     _sender.fill_window();
-    while (!_sender.segments_out().empty()) {
-        TCPSegment seg;
-        popTCPSegment(seg, 0);
-        _segments_out.push(seg);
-        _sender.fill_window();
-    }
+    if (!_sender.segments_out().empty()) 
+        fill_queue(0);
     test_end();
     return size;
 }
@@ -147,20 +138,16 @@ void TCPConnection::send_ack_back(){
     //sometimes the TCPSender will send a segment in ack_received()
     if(_sender.segments_out().empty())
         _sender.send_empty_segment();
-
-    TCPSegment newseg;
-    popTCPSegment(newseg, 0);
-    newseg.header().ack = 1;
-    _segments_out.push(newseg);
+    fill_queue(0);
 }
 
 //test the end of TCP connection
 void TCPConnection::test_end(){
-    if (_receiver.stream_out().eof() && !_sender.stream_in().eof())
+    if (_receiver.stream_out().input_ended() && (!_sender.stream_in().eof()) && _sender.syn_sent())
         _linger_after_streams_finish = false;
     if(_receiver.stream_out().eof() && _sender.stream_in().eof() && _sender.bytes_in_flight()==0 && _sender.fin_sent()){
         //bytes_in_flight==0 => state: FIN_ACKED
-        _active &= _linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout);
+        _active &= (_linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout));
     }
 }
 

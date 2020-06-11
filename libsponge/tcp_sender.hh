@@ -113,6 +113,7 @@ class TCPSender {
     //! the flag of FIN sent
     bool _fin_sent;
 
+
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
@@ -133,6 +134,9 @@ class TCPSender {
 
     //! \brief Generate an empty-payload segment (useful for creating empty ACK segments)
     void send_empty_segment();
+
+    //! \brief Generate an non-empty segment
+    void send_non_empty_segment(TCPSegment &seg);
 
     //! \brief create and send segments to fill as much of the window as possible
     void fill_window();
