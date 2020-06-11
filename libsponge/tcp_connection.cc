@@ -40,10 +40,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             TCPSegment newseg;
             popTCPSegment(newseg, 0);
             _segments_out.push(newseg);
-            _sender.fill_window();
         }
     }
-
     if(!_receiver.segment_received(seg)){
         send_ack_back();
         return;
@@ -96,22 +94,14 @@ size_t TCPConnection::write(const string &data) {
 void TCPConnection::tick(const size_t ms_since_last_tick) { 
     _sender.tick(ms_since_last_tick); 
     _ms_since_last_segment_received+=ms_since_last_tick;
-    TCPSegment seg;
-    if (!_sender.segments_out().empty()) {
-        popTCPSegment(seg, 0);
-        _segments_out.push(seg);
-    }
+    fill_queue(0);
     test_end();
 }
 
 void TCPConnection::end_input_stream() {
     _sender.stream_in().end_input();
     _sender.fill_window();
-    if (!_sender.segments_out().empty()) {
-        TCPSegment seg;
-        popTCPSegment(seg, 0);
-        _segments_out.push(seg);
-    }
+    fill_queue(0);
     test_end();
 }
 
@@ -134,10 +124,7 @@ TCPConnection::~TCPConnection() {
         if (active()) {
             cerr << "Warning: Unclean shutdown of TCPConnection\n";
             // send a RST segment to the peer
-            TCPSegment seg;
-            _sender.send_empty_segment();
-            popTCPSegment(seg,1);
-            _segments_out.push(seg);
+            fill_queue(1);
         }
     } catch (const exception &e) {
         std::cerr << "Exception destructing TCP FSM: " << e.what() << std::endl;
@@ -190,5 +177,14 @@ void TCPConnection::test_end(){
     if(_receiver.stream_out().eof() && _sender.stream_in().eof() && _sender.bytes_in_flight()==0 && _sender.fin_sent()){
         //bytes_in_flight==0 => state: FIN_ACKED
         _active &= _linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout);
+    }
+}
+
+//fill queue from _sender.segments_out() to _segments_out
+void TCPConnection::fill_queue(bool rst){
+    while (!_sender.segments_out().empty()) {
+        TCPSegment seg;
+        popTCPSegment(seg, rst);
+        _segments_out.push(seg);
     }
 }

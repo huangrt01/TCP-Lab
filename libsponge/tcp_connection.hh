@@ -32,6 +32,9 @@ class TCPConnection {
     //test the end of TCP connection
     void test_end();
 
+    // fill queue from _sender.segments_out() to _segments_out
+    void fill_queue(bool rst);
+
   public:
     //! \name "Input" interface for the writer
     //!@{

@@ -74,6 +74,8 @@ void TCPSender::fill_window() {
 
     _segments_out.push(seg);
     _segments_outstanding.insert(seg);
+    if(!_timer.open())
+        _timer.start();
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
@@ -94,6 +96,7 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _consecutive_retransmissions = 0;
     _recv_ackno = abs_ackno;
 
+
     //删掉fully-acknowledged segments
     if (!_segments_outstanding.empty()) {
         std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
@@ -108,8 +111,13 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     }
     //fill the window 
     fill_window();
-    // when all outstanding data has been acknowledged, close the timer.
-    if (_segments_outstanding.empty())
+
+    // any outstanding segment, restart the timer.
+    if (!_segments_outstanding.empty()){
+        if(!_timer.open())
+            _timer.start();
+    }
+    else
         _timer.close();
     return 1;
 }
@@ -117,25 +125,24 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     size_t time_left = ms_since_last_tick;
-    bool time_expire=0;
-    while (_timer.tick(time_left)){
-    //    fill_window(); //test fsm_retx_relaxed
-        time_expire=1;
-    }
-
-    // timer has expired
-    // retransmit at most ONE outstanding segment
-    if (!_segments_outstanding.empty() && time_expire){
-        // retransmit the outstanding segment with the lowest sequence number
-        std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
-        _segments_out.push(*iter);
-        if (_window_size) {
-            _consecutive_retransmissions++;
-            _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy networks
-                               // to avoid further gumming up the works
+    if(_timer.tick(time_left)){
+        // remove fill_the_window(), fix the test fsm_retx_relaxed
+        // timer has expired
+        // retransmit at most ONE outstanding segment
+        if (!_segments_outstanding.empty()) {
+            // retransmit the outstanding segment with the lowest sequence number
+            std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
+            _segments_out.push(*iter);
+            if (_window_size) {
+                _consecutive_retransmissions++;
+                _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy
+                                   // networks to avoid further gumming up the works
+            }
+            _timer.start();
+            if (_segments_outstanding.empty())
+                _timer.close();
         }
-        _timer.start();
-    }    
+    }  
 }
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retransmissions; }
@@ -143,6 +150,5 @@ unsigned int TCPSender::consecutive_retransmissions() const { return _consecutiv
 void TCPSender::send_empty_segment() {
     TCPSegment seg;
     seg.header().seqno = wrap(_next_seqno, _isn);
-    assert(!seg.length_in_sequence_space());
     _segments_out.push(seg);
 }
