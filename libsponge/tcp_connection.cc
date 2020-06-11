@@ -28,24 +28,36 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         _receiver.stream_out().set_error();
         return;
     }
+
     if (seg.header().ack && _sender.syn_sent()) {
         if(!_sender.ack_received(seg.header().ackno, seg.header().win)){  // fsm_ack_rst_relaxed: ack in the future -> sent ack back
             send_ack_back();
             return;
         }
     }
+
     if(_receiver.segment_received(seg))
         _ms_since_last_segment_received=0;
     else{
         send_ack_back();
         return;
     }
+
     if (seg.header().syn) {
         if (!_sender.syn_sent()) {
             _sender.fill_window();        //SYN+ACK
         }
         else if(_sender.segments_out().empty())
             _sender.send_empty_segment();   //ACK
+        TCPSegment newseg;
+        popTCPSegment(newseg, 0);
+        newseg.header().ack = 1;
+        _segments_out.push(newseg);
+    }
+    else if(seg.header().fin){
+        _sender.fill_window();
+        if (_sender.segments_out().empty())
+            _sender.send_empty_segment();  // ACK
         TCPSegment newseg;
         popTCPSegment(newseg, 0);
         newseg.header().ack = 1;
@@ -83,6 +95,12 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
 
 void TCPConnection::end_input_stream() {
     _sender.stream_in().end_input();
+    _sender.fill_window();
+    if (!_sender.segments_out().empty()) {
+        TCPSegment seg;
+        popTCPSegment(seg, 0);
+        _segments_out.push(seg);
+    }
 }
 
 void TCPConnection::connect() {

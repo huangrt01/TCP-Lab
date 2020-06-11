@@ -37,12 +37,10 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
     if (!win_size)
         win_size = 1;
 
-    if (hdr.fin) {
+    if (hdr.fin || hdr.syn) {
         _ackno++;
         received = 1;
     }
-    if (hdr.syn)
-        _ackno++;
 
     if (abs_seqno + seq_size - 1 < win_start)
         return received;

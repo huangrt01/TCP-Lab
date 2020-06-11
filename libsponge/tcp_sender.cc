@@ -116,20 +116,21 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
-    if (!_timer.tick(ms_since_last_tick))
-        return;
-    // timer has expired
-    if (_segments_outstanding.empty())
-        return;
-    // retransmit the outstanding segment with the lowest sequence number
-    std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
-    _segments_out.push(*iter);
-    if (_window_size) {
-        _consecutive_retransmissions++;
-        _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy networks to
-                           // avoid further gumming up the works
+    size_t time_left = ms_since_last_tick;
+    while (_timer.tick(time_left)){
+        // timer has expired
+        if (_segments_outstanding.empty())
+            continue;
+        // retransmit the outstanding segment with the lowest sequence number
+        std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
+        _segments_out.push(*iter);
+        if (_window_size) {
+            _consecutive_retransmissions++;
+            _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy networks
+                               // to avoid further gumming up the works
+        }
+        _timer.start();
     }
-    _timer.start();
 }
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retransmissions; }

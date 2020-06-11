@@ -56,10 +56,17 @@ class TCPRetransmissionTimer {
     }
 
     //! tick
-    bool tick(const size_t ms_since_last_tick) {
+    bool tick(size_t &ms_since_last_tick) {
         if (!open())
             start();
-        _TO += ms_since_last_tick;
+        if(ms_since_last_tick > _RTO - _TO){
+            ms_since_last_tick -= (_RTO - _TO);
+            _TO=_RTO;
+        }
+        else{
+            _TO += ms_since_last_tick;
+            ms_since_last_tick = 0;
+        }
         if (_TO >= _RTO) {
             close();
             return 1;  // the retransmission timer has expired.
