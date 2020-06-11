@@ -106,6 +106,8 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
                 iter++;
         }
     }
+    //fill the window 
+    fill_window();
     // when all outstanding data has been acknowledged, close the timer.
     if (_segments_outstanding.empty())
         _timer.close();

@@ -44,12 +44,11 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         if (!_sender.syn_sent()) {
             _sender.fill_window();        //SYN+ACK
         }
-        else
+        else if(_sender.segments_out().empty())
             _sender.send_empty_segment();   //ACK
         TCPSegment newseg;
-        popTCPSegment(newseg,0);
-        newseg.header().ack=1;
-        if (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) newseg.header().rst=1;
+        popTCPSegment(newseg, 0);
+        newseg.header().ack = 1;
         _segments_out.push(newseg);
     }
     else if(seg.length_in_sequence_space()){
@@ -75,8 +74,8 @@ size_t TCPConnection::write(const string &data) {
 void TCPConnection::tick(const size_t ms_since_last_tick) { 
     _sender.tick(ms_since_last_tick); 
     _ms_since_last_segment_received+=ms_since_last_tick;
+    TCPSegment seg;
     if (!_sender.segments_out().empty()) {
-        TCPSegment seg;
         popTCPSegment(seg, 0);
         _segments_out.push(seg);
     }
@@ -118,21 +117,35 @@ TCPConnection::~TCPConnection() {
 void TCPConnection::popTCPSegment(TCPSegment &seg,bool rst){
     // send a segment
     // reset condition
-    seg=_sender.segments_out().front();
+    seg = _sender.segments_out().front();
     _sender.segments_out().pop();
-    if(rst || _sender.consecutive_retransmissions()>TCPConfig::MAX_RETX_ATTEMPTS){
-        seg.header().rst=true;
-    }
-    else {
+    if (rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
+        seg.header().rst = true;
+    } else {
         if (_receiver.ackno().has_value()) {
             seg.header().ackno = _receiver.ackno().value();
             seg.header().ack = true;
         }
         // TCPReceiver wants to advertise a window size
         // that’s bigger than will fit in the TCPSegment::header().win field
-        if(_receiver.window_size() < numeric_limits<uint16_t>::max())  
+        if (_receiver.window_size() < numeric_limits<uint16_t>::max())
             seg.header().win = _receiver.window_size();
         else
             seg.header().win = numeric_limits<uint16_t>::max();
     }
+}
+
+//send ack back
+void TCPConnection::send_ack_back(){
+    //if the ackno is missing, don't send back an ACK.
+    if(!_receiver.ackno().has_value()) return;
+
+    //sometimes the TCPSender will send a segment in ack_received()
+    if(_sender.segments_out().empty())
+        _sender.send_empty_segment();
+
+    TCPSegment newseg;
+    popTCPSegment(newseg, 0);
+    newseg.header().ack = 1;
+    _segments_out.push(newseg);
 }
