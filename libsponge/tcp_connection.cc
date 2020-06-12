@@ -115,19 +115,20 @@ TCPConnection::~TCPConnection() {
 
 void TCPConnection::popTCPSegment(TCPSegment &seg){
     // send a segment
-    // reset condition
     seg = _sender.segments_out().front();
     _sender.segments_out().pop();
+    if (_receiver.ackno().has_value()) {
+        seg.header().ackno = _receiver.ackno().value();
+        seg.header().ack = true;
+    }
+
     if(_rst || (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)) {
+        // send RST
         _rst=1;
         seg.header().rst = true;
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
     } else {
-        if (_receiver.ackno().has_value()) {
-            seg.header().ackno = _receiver.ackno().value();
-            seg.header().ack = true;
-        }
         // TCPReceiver wants to advertise a window size
         // that’s bigger than will fit in the TCPSegment::header().win field
         if (_receiver.window_size() < numeric_limits<uint16_t>::max())
