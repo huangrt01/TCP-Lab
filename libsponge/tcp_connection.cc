@@ -36,7 +36,6 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     // ignore out of window RST
     if (seg.header().rst) {
         _rst = 1;
-        _active = 0;
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
         return;
@@ -65,7 +64,9 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     test_end();
 }
 
-bool TCPConnection::active() const { return _active; }
+bool TCPConnection::active() const { 
+    return (!_clean_shutdown) && (!_unclean_shutdown) && (!_rst); 
+}
 
 size_t TCPConnection::write(const string &data) {
     size_t size=_sender.stream_in().write(data);
@@ -93,6 +94,7 @@ void TCPConnection::end_input_stream() {
 
 void TCPConnection::connect() {
     _sender.fill_window();
+    if(!_rst) _rst=0;
     fill_queue();
 }
 
@@ -120,7 +122,6 @@ void TCPConnection::popTCPSegment(TCPSegment &seg){
         seg.header().rst = true;
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
-        _active = 0;
     } else {
         if (_receiver.ackno().has_value()) {
             seg.header().ackno = _receiver.ackno().value();
@@ -152,7 +153,8 @@ void TCPConnection::test_end(){
         _linger_after_streams_finish = false;
     if(_receiver.stream_out().eof() && _sender.stream_in().eof() && _sender.bytes_in_flight()==0 && _sender.fin_sent()){
         //bytes_in_flight==0 => state: FIN_ACKED
-        _active &= (_linger_after_streams_finish && (_ms_since_last_segment_received < 10 * _cfg.rt_timeout));
+        _clean_shutdown |= (!_linger_after_streams_finish);
+        _unclean_shutdown |= (_ms_since_last_segment_received >= 10 * _cfg.rt_timeout);
     }
 }
 

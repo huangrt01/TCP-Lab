@@ -20,10 +20,11 @@ class TCPConnection {
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
-    bool _active{true};
     size_t _ms_since_last_segment_received{0};
     bool _connect_initiated{0};
     bool _rst{0};
+    bool _clean_shutdown{0};
+    bool _unclean_shutdown{0};
 
     //process TCPSegment basically
     void popTCPSegment(TCPSegment &seg);
