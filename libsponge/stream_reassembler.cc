@@ -41,13 +41,39 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     }
     if (resIndex + resData.size() > firstUnacceptable)
         resData = resData.substr(0, firstUnacceptable - resIndex);
-    for (iter2 = _Unassembled.begin(); iter2 != _Unassembled.end();) {
+    
+    //           | resData |
+    //        <---|iter|
+    iter2=_Unassembled.lower_bound(typeUnassembled(resIndex,resData));
+    while(iter2!=_Unassembled.begin()){  
+        //resIndex > _firstUnassembled
+        if(iter2==_Unassembled.end())
+            iter2--;
+        if (size_t deleteNum = merge_substring(resIndex, resData, iter2)) {  //返回值是删掉重合的bytes数
+            _nUnassembled -= deleteNum;
+            if(iter2 !=_Unassembled.begin()){
+                _Unassembled.erase(iter2--);
+            }
+            else{
+                _Unassembled.erase(iter2);
+                break;
+            }
+        } 
+        else
+            break;
+    }
+
+    //         ｜resData |
+    //          | iter2 ... | --->
+    iter2 = _Unassembled.lower_bound(typeUnassembled(resIndex, resData));
+    while(iter2 != _Unassembled.end()){
         if (size_t deleteNum = merge_substring(resIndex, resData, iter2)) {  //返回值是删掉重合的bytes数
             _Unassembled.erase(iter2++);
             _nUnassembled -= deleteNum;
         } else
-            iter2++;
+            break;
     }
+
     if (resIndex <= _firstUnassembled) {
         size_t wSize = _output.write(string(resData.begin() + _firstUnassembled - resIndex, resData.end()));
         if (wSize == resData.size() && eof)
