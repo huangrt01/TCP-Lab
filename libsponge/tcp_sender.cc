@@ -92,13 +92,10 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         return 1;
     }
 
-    
-
+    _recv_ackno = abs_ackno;
     // acknowledges the successful receipt of new data
     _timer._RTO = _timer._initial_RTO;
     _consecutive_retransmissions = 0;
-    _recv_ackno = abs_ackno;
-
 
     //删掉fully-acknowledged segments
     if (!_segments_outstanding.empty()) {
@@ -111,14 +108,14 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
                 iter++;
         }
     }
-    //fill the window 
+
+    // fill the window
     fill_window();
 
     // any outstanding segment, restart the timer.
+    // [RFC6298](5.3)
     if (!_segments_outstanding.empty())
         _timer.start();
-    else
-        _timer.close();
     return 1;
 }
 
@@ -138,7 +135,14 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
                 _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy
                                    // networks to avoid further gumming up the works
             }
-            _timer.start();
+            if(!_timer.open()) //[RFC6298](5.1)
+                _timer.start();
+            if (syn_sent() && (_next_seqno == _nBytes_inflight)){
+                //SYN_SENT, [RFC6298](5.7)
+                if(_timer._RTO < _timer._initial_RTO){
+                    _timer._RTO = _timer._initial_RTO;
+                }
+            }
         }
         if (_segments_outstanding.empty())
             _timer.close();
@@ -162,6 +166,8 @@ void TCPSender::send_non_empty_segment(TCPSegment &seg){
 
     _segments_out.push(seg);
     _segments_outstanding.insert(seg);
+
+    // [RFC6298]:(5.1)
     if (!_timer.open())
         _timer.start();
 }

@@ -17,7 +17,7 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 ByteStream::ByteStream(const size_t capacity)
-    : _stream(), _size(0), _capacity(capacity), _nwritten(0), _nread(0), _eof(0), _input_ended(0) {}
+    : _stream(), _size(0), _capacity(capacity), _nwritten(0), _nread(0), _input_ended(0) {}
 
 size_t ByteStream::write(const string &data) {
     size_t l = min(remaining_capacity(), data.size());
@@ -41,14 +41,10 @@ void ByteStream::pop_output(const size_t len) {
         _stream.pop_front();
     _size -= l;
     _nread += l;
-    if (buffer_empty() && input_ended())
-        _eof = true;
 }
 
 void ByteStream::end_input() {
     _input_ended = 1;
-    if (!_size)
-        _eof = true;
 }
 
 bool ByteStream::input_ended() const { return _input_ended; }
@@ -57,7 +53,7 @@ size_t ByteStream::buffer_size() const { return _size; }
 
 bool ByteStream::buffer_empty() const { return _size == 0; }
 
-bool ByteStream::eof() const { return _eof; }
+bool ByteStream::eof() const { return input_ended()&&buffer_empty(); }
 
 size_t ByteStream::bytes_written() const { return _nwritten; }
 

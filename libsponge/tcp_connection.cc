@@ -69,6 +69,7 @@ bool TCPConnection::active() const {
 }
 
 size_t TCPConnection::write(const string &data) {
+    if(data.size()==0) return 0;
     size_t size=_sender.stream_in().write(data);
     _sender.fill_window();
     if (!_sender.segments_out().empty()) 
@@ -151,7 +152,7 @@ void TCPConnection::send_ack_back(){
 void TCPConnection::test_end(){
     if (_receiver.stream_out().input_ended() && (!_sender.stream_in().eof()) && _sender.syn_sent())
         _linger_after_streams_finish = false;
-    if(_receiver.stream_out().eof() && _sender.stream_in().eof() && _sender.bytes_in_flight()==0 && _sender.fin_sent()){
+    if(_receiver.stream_out().eof() && _sender.stream_in().eof() && (unassembled_bytes()==0) && (bytes_in_flight()==0) && _sender.fin_sent()){
         //bytes_in_flight==0 => state: FIN_ACKED
         _clean_shutdown |= (!_linger_after_streams_finish);
         _unclean_shutdown |= (_ms_since_last_segment_received >= 10 * _cfg.rt_timeout);
