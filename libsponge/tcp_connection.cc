@@ -115,7 +115,7 @@ void TCPConnection::popTCPSegment(TCPSegment &seg){
     // reset condition
     seg = _sender.segments_out().front();
     _sender.segments_out().pop();
-    if (_rst || seg.header().rst || _sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS) {
+    if(_rst || (_sender.consecutive_retransmissions() > TCPConfig::MAX_RETX_ATTEMPTS)) {
         _rst=1;
         seg.header().rst = true;
         _sender.stream_in().set_error();

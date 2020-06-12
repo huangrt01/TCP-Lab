@@ -1,4 +1,4 @@
-#include "socket.hh"
+#include "tcp_sponge_socket.hh"
 #include "util.hh"
 
 #include <cstdlib>
@@ -7,7 +7,7 @@
 using namespace std;
 
 void get_URL(const string &host, const string &path) {
-    TCPSocket sock{};
+    CS144TCPSocket sock{};
     sock.connect(Address(host, "http"));
     string input("GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n");
     sock.write(input);
@@ -19,6 +19,13 @@ void get_URL(const string &host, const string &path) {
     while (!sock.eof())
         cout << sock.read();
     sock.close();
+
+    // the Linux kernel takes care of waiting forTCP connections to reach “clean shutdown” (
+    // and give up their port reservations) even after user processes have exited.
+    // because CS144TCP implementation is all in user space,
+    // there’s nothing else to keep track of the connection state except using this call waiting until
+    // TCPConnection reports active() = false.
+    sock.wait_until_closed();
 }
 
 int main(int argc, char *argv[]) {
