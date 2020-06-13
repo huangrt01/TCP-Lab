@@ -26,13 +26,12 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     _ms_since_last_segment_received = 0;
     bool send_recv=0;
     bool recv_recv=0;
+    bool send_empty=0;
     
     if (seg.header().ack && _sender.syn_sent()) {
         send_recv= _sender.ack_received(seg.header().ackno, seg.header().win);
         if(!send_recv){  // fsm_ack_rst_relaxed: ack in the future -> sent ack back
-            send_ack_back();
-            test_end();
-            return;
+            send_empty=true;
         }
         _sender.fill_window();
         if (!_sender.segments_out().empty()) {
@@ -50,9 +49,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     }
 
     if(!recv_recv){
-        send_ack_back();
-        test_end();
-        return;
+        send_empty=true;
     }
     
     if (seg.header().syn && !_sender.syn_sent()) {
@@ -65,10 +62,19 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         if (_sender.segments_out().empty())     //send ACK
             _sender.send_empty_segment();  
         fill_queue();
+        test_end();
+        return;
     }
     else if(seg.length_in_sequence_space()){
-        send_ack_back();
+        send_empty=true;
     }
+
+    if(send_empty){
+        // if the ackno is missing, don't send back an ACK.
+        if (_receiver.ackno().has_value() && _sender.segments_out().empty())
+            _sender.send_empty_segment();
+    }
+    fill_queue();
     test_end();
 }
 
@@ -145,16 +151,6 @@ void TCPConnection::popTCPSegment(TCPSegment &seg){
     }
 }
 
-//send ack back
-void TCPConnection::send_ack_back(){
-    //if the ackno is missing, don't send back an ACK.
-    if(!_receiver.ackno().has_value()) return;
-
-    //sometimes the TCPSender will send a segment in ack_received()
-    if(_sender.segments_out().empty())
-        _sender.send_empty_segment();
-    fill_queue();
-}
 
 //test the end of TCP connection
 void TCPConnection::test_end(){
