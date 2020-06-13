@@ -17,11 +17,6 @@
 //! segments, keeps track of which segments are still in-flight,
 //! maintains the Retransmission Timer, and retransmits in-flight
 //! segments if the retransmission timer expires.
-struct cmp {
-    bool operator()(const TCPSegment &a, const TCPSegment &b) const {
-        return a.header().seqno.raw_value() < b.header().seqno.raw_value();
-    }
-};
 class TCPRetransmissionTimer {
   public:
     //! retransmission timer for the connection
@@ -84,7 +79,7 @@ class TCPSender {
     std::queue<TCPSegment> _segments_out;
 
     //! outstanding segments that the TCPSender may resend
-    std::set<TCPSegment, cmp> _segments_outstanding;
+    std::queue<TCPSegment> _segments_outstanding;
 
     //! bytes in flight
     uint64_t _nBytes_inflight;

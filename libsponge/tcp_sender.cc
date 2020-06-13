@@ -98,15 +98,14 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _consecutive_retransmissions = 0;
 
     //删掉fully-acknowledged segments
-    if (!_segments_outstanding.empty()) {
-        std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
-        while (iter != _segments_outstanding.end()) {
-            if (ackno - iter->header().seqno >= static_cast<int32_t>(iter->length_in_sequence_space())) {
-                _nBytes_inflight -= iter->length_in_sequence_space();
-                _segments_outstanding.erase(iter++);
-            } else
-                iter++;
-        }
+    TCPSegment tempSeg; 
+    while (!_segments_outstanding.empty()) {
+        tempSeg = _segments_outstanding.front();
+        if (ackno - tempSeg.header().seqno >= static_cast<int32_t>(tempSeg.length_in_sequence_space())) {
+            _nBytes_inflight -= tempSeg.length_in_sequence_space();
+            _segments_outstanding.pop();
+        } else
+            break;
     }
 
     // fill the window
@@ -128,8 +127,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
         // retransmit at most ONE outstanding segment
         if (!_segments_outstanding.empty()) {
             // retransmit the outstanding segment with the lowest sequence number
-            std::set<TCPSegment, cmp>::iterator iter = _segments_outstanding.begin();
-            _segments_out.push(*iter);
+            _segments_out.push(_segments_outstanding.front());
             if (_window_size) {
                 _consecutive_retransmissions++;
                 _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy
@@ -158,14 +156,13 @@ void TCPSender::send_empty_segment() {
 }
 
 void TCPSender::send_non_empty_segment(TCPSegment &seg){
-    seg.header().win = _window_size;
     seg.header().seqno = wrap(_next_seqno, _isn);
 
     _next_seqno += seg.length_in_sequence_space();
     _nBytes_inflight += seg.length_in_sequence_space();
 
     _segments_out.push(seg);
-    _segments_outstanding.insert(seg);
+    _segments_outstanding.push(seg);
 
     // [RFC6298]:(5.1)
     if (!_timer.open())
