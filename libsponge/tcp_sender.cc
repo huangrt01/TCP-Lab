@@ -52,12 +52,11 @@ void TCPSender::fill_window() {
     if (_window_size == 0)
         win = 1;  // zero window probing
 
-    uint16_t remaining;
-    while ((remaining = win + static_cast<uint16_t>(_recv_ackno - _next_seqno))){
+    uint64_t remaining;
+    while ((remaining = static_cast<uint64_t>(win) + (_recv_ackno - _next_seqno))){
+        // FIN flag occupies space in window
         TCPSegment newseg;
         if (_stream.eof() && !_fin_sent) {
-            if (remaining == 0)
-                return;  // FIN flag occupies space in window
             newseg.header().fin = 1;
             _fin_sent = 1;
             send_non_empty_segment(newseg);
@@ -65,7 +64,7 @@ void TCPSender::fill_window() {
         } else if (_stream.eof())
             return;
         else {  // SYN_ACKED
-            uint16_t size = min(remaining, static_cast<uint16_t>(TCPConfig::MAX_PAYLOAD_SIZE));
+            size_t size = min(static_cast<size_t>(remaining), TCPConfig::MAX_PAYLOAD_SIZE);
             newseg.payload() = Buffer(std::move(_stream.read(size)));
             if (newseg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
                 newseg.header().fin = 1;
@@ -160,7 +159,7 @@ void TCPSender::send_non_empty_segment(TCPSegment &seg){
 
     _next_seqno += seg.length_in_sequence_space();
     _nBytes_inflight += seg.length_in_sequence_space();
-
+    //std::cerr << "send non empty: " << seg.header().to_string() << "length:" << seg.length_in_sequence_space() << endl << endl;
     _segments_out.push(seg);
     _segments_outstanding.push(seg);
 

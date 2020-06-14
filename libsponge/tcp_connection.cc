@@ -22,10 +22,9 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 size_t TCPConnection::time_since_last_segment_received() const { return _ms_since_last_segment_received; }
 
 void TCPConnection::segment_received(const TCPSegment &seg) {
-   // cerr<<"receive: " << seg.header().to_string() << "length:"<<seg.length_in_sequence_space()<<endl<<endl;
+    //cerr<<"receive: " << seg.header().to_string() << "length:"<<seg.length_in_sequence_space()<<endl<<endl;
     _ms_since_last_segment_received = 0;
     bool send_recv=0;
-    bool recv_recv=0;
     bool send_empty=0;
     
     if (seg.header().ack && _sender.syn_sent()) {
@@ -33,37 +32,36 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         if(!send_recv){  // fsm_ack_rst_relaxed: ack in the future -> sent ack back
             send_empty=true;
         }
-        _sender.fill_window();
-        if (!_sender.segments_out().empty()) {
-            fill_queue();
-        }
+        else 
+            _sender.fill_window();
     }
-    recv_recv = _receiver.segment_received(seg);
-    // ignore out of window RST
-    if ((recv_recv || (seg.header().ack && (_sender.next_seqno() == seg.header().ackno))) && seg.header().rst) {
-        _rst = 1;
-        _sender.stream_in().set_error();
-        _receiver.stream_out().set_error();
-        test_end();
-        return;
+    bool recv_recv = _receiver.segment_received(seg);
+    if (!recv_recv) {
+        send_empty = true;
     }
 
-    if(!recv_recv){
-        send_empty=true;
-    }
-    
     if (seg.header().syn && !_sender.syn_sent()) {
         connect();
         return;
     }
-    else if(seg.header().fin){
+
+    // ignore out of window RST
+    if(seg.header().rst){
+        if(recv_recv || (seg.header().ack && (_sender.next_seqno() == seg.header().ackno))){
+            _rst = 1;
+            _sender.stream_in().set_error();
+            _receiver.stream_out().set_error();
+            test_end();
+        }
+        return;
+    }
+
+    
+    if(seg.header().fin){
         if(!_sender.fin_sent())      //send FIN+ACK
             _sender.fill_window();
         if (_sender.segments_out().empty())     //send ACK
-            _sender.send_empty_segment();  
-        fill_queue();
-        test_end();
-        return;
+            send_empty=true;
     }
     else if(seg.length_in_sequence_space()){
         send_empty=true;
