@@ -166,8 +166,9 @@ void TCPTestHarness::execute(const TCPTestStep &step, std::string note) {
 
 TCPSegment TCPTestHarness::expect_seg(const ExpectSegment &expectation, std::string note) {
     try {
-        return expectation.expect_seg(*this);
+        auto ret = expectation.expect_seg(*this);
         _steps_executed.emplace_back(expectation.to_string());
+        return ret;
     } catch (const TCPExpectationViolation &e) {
         cerr << "Test Failure on expectation:\n\t" << expectation.description() << "\nFailure message:\n\t" << e.what()
              << endl;

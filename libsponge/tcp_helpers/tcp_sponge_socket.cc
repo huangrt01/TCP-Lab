@@ -1,5 +1,6 @@
 #include "tcp_sponge_socket.hh"
 
+#include "network_interface.hh"
 #include "parser.hh"
 #include "tun.hh"
 #include "util.hh"
@@ -32,19 +33,20 @@ void TCPSpongeSocket<AdaptT>::_tcp_loop(const function<bool()> &condition) {
         if (_tcp.value().active()) {
             const auto next_time = timestamp_ms();
             _tcp.value().tick(next_time - base_time);
+            _datagram_adapter.tick(next_time - base_time);
             base_time = next_time;
         }
     }
 }
 
 //! \param[in] data_socket_pair is a pair of connected AF_UNIX SOCK_STREAM sockets
-//! \param[in] dgramfd is the FileDescriptor for reading and writing datagrams
+//! \param[in] datagram_interface is the interface for reading and writing datagrams
 template <typename AdaptT>
 TCPSpongeSocket<AdaptT>::TCPSpongeSocket(pair<FileDescriptor, FileDescriptor> data_socket_pair,
-                                         FileDescriptor &&dgramfd)
+                                         AdaptT &&datagram_interface)
     : LocalStreamSocket(move(data_socket_pair.first))
     , _thread_data(move(data_socket_pair.second))
-    , _datagram_adapter(move(dgramfd)) {
+    , _datagram_adapter(move(datagram_interface)) {
     _thread_data.set_blocking(false);
 }
 
@@ -169,10 +171,10 @@ static inline pair<FileDescriptor, FileDescriptor> socket_pair_helper(const int 
     return {FileDescriptor(fds[0]), FileDescriptor(fds[1])};
 }
 
-//! \param[in] dgramfd is the FileDescriptor for reading and writing datagrams
+//! \param[in] datagram_interface is the underlying interface (e.g. to UDP, IP, or Ethernet)
 template <typename AdaptT>
-TCPSpongeSocket<AdaptT>::TCPSpongeSocket(FileDescriptor &&dgramfd)
-    : TCPSpongeSocket(socket_pair_helper(SOCK_STREAM), move(dgramfd)) {}
+TCPSpongeSocket<AdaptT>::TCPSpongeSocket(AdaptT &&datagram_interface)
+    : TCPSpongeSocket(socket_pair_helper(SOCK_STREAM), move(datagram_interface)) {}
 
 template <typename AdaptT>
 TCPSpongeSocket<AdaptT>::~TCPSpongeSocket() {
@@ -274,13 +276,16 @@ template class TCPSpongeSocket<TCPOverUDPSocketAdapter>;
 //! Specialization of TCPSpongeSocket for TCPOverIPv4OverTunFdAdapter
 template class TCPSpongeSocket<TCPOverIPv4OverTunFdAdapter>;
 
+//! Specialization of TCPSpongeSocket for TCPOverIPv4OverEthernetAdapter
+template class TCPSpongeSocket<TCPOverIPv4OverEthernetAdapter>;
+
 //! Specialization of TCPSpongeSocket for LossyTCPOverUDPSocketAdapter
 template class TCPSpongeSocket<LossyTCPOverUDPSocketAdapter>;
 
 //! Specialization of TCPSpongeSocket for LossyTCPOverIPv4OverTunFdAdapter
 template class TCPSpongeSocket<LossyTCPOverIPv4OverTunFdAdapter>;
 
-CS144TCPSocket::CS144TCPSocket() : TCPOverIPv4SpongeSocket(TunFD("tun144")) {}
+CS144TCPSocket::CS144TCPSocket() : TCPOverIPv4SpongeSocket(TCPOverIPv4OverTunFdAdapter(TunFD("tun144"))) {}
 
 void CS144TCPSocket::connect(const Address &address) {
     TCPConfig tcp_config;
@@ -291,4 +296,35 @@ void CS144TCPSocket::connect(const Address &address) {
     multiplexer_config.destination = address;
 
     TCPOverIPv4SpongeSocket::connect(tcp_config, multiplexer_config);
+}
+
+static const string LOCAL_TAP_IP_ADDRESS = "169.254.10.9";
+static const string LOCAL_TAP_NEXT_HOP_ADDRESS = "169.254.10.1";
+
+EthernetAddress random_private_ethernet_address() {
+    EthernetAddress addr;
+    for (auto &byte : addr) {
+        byte = random_device()();  // use a random local Ethernet address
+    }
+    addr.at(0) |= 0x02;  // "10" in last two binary digits marks a private Ethernet address
+    addr.at(0) &= 0xfe;
+
+    return addr;
+}
+
+FullStackSocket::FullStackSocket()
+    : TCPOverIPv4OverEthernetSpongeSocket(TCPOverIPv4OverEthernetAdapter(TapFD("tap10"),
+                                                                         random_private_ethernet_address(),
+                                                                         Address(LOCAL_TAP_IP_ADDRESS, "0"),
+                                                                         Address(LOCAL_TAP_NEXT_HOP_ADDRESS, "0"))) {}
+
+void FullStackSocket::connect(const Address &address) {
+    TCPConfig tcp_config;
+    tcp_config.rt_timeout = 100;
+
+    FdAdapterConfig multiplexer_config;
+    multiplexer_config.source = {LOCAL_TAP_IP_ADDRESS, to_string(uint16_t(random_device()()))};
+    multiplexer_config.destination = address;
+
+    TCPOverIPv4OverEthernetSpongeSocket::connect(tcp_config, multiplexer_config);
 }

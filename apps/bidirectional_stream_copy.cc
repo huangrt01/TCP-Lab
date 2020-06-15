@@ -26,16 +26,17 @@ void bidirectional_stream_copy(Socket &socket) {
     _output.set_blocking(false);
 
     // rule 1: read from stdin into outbound byte stream
-    _eventloop.add_rule(_input,
-                        Direction::In,
-                        [&] {
-                            _outbound.write(_input.read(_outbound.remaining_capacity()));
-                            if (_input.eof()) {
-                                _outbound.end_input();
-                            }
-                        },
-                        [&] { return (not _outbound.error()) and (_outbound.remaining_capacity() > 0); },
-                        [&] { _outbound.end_input(); });
+    _eventloop.add_rule(
+        _input,
+        Direction::In,
+        [&] {
+            _outbound.write(_input.read(_outbound.remaining_capacity()));
+            if (_input.eof()) {
+                _outbound.end_input();
+            }
+        },
+        [&] { return (not _outbound.error()) and (_outbound.remaining_capacity() > 0) and (not _inbound.error()); },
+        [&] { _outbound.end_input(); });
 
     // rule 2: read from outbound byte stream into socket
     _eventloop.add_rule(socket,
@@ -53,16 +54,17 @@ void bidirectional_stream_copy(Socket &socket) {
                         [&] { _outbound.set_error(); });
 
     // rule 3: read from socket into inbound byte stream
-    _eventloop.add_rule(socket,
-                        Direction::In,
-                        [&] {
-                            _inbound.write(socket.read(_inbound.remaining_capacity()));
-                            if (socket.eof()) {
-                                _inbound.end_input();
-                            }
-                        },
-                        [&] { return (not _inbound.error()) and (_inbound.remaining_capacity() > 0); },
-                        [&] { _inbound.end_input(); });
+    _eventloop.add_rule(
+        socket,
+        Direction::In,
+        [&] {
+            _inbound.write(socket.read(_inbound.remaining_capacity()));
+            if (socket.eof()) {
+                _inbound.end_input();
+            }
+        },
+        [&] { return (not _inbound.error()) and (_inbound.remaining_capacity() > 0) and (not _outbound.error()); },
+        [&] { _inbound.end_input(); });
 
     // rule 4: read from inbound byte stream into stdout
     _eventloop.add_rule(_output,

@@ -1,4 +1,4 @@
-add_library (spongechecks STATIC send_equivalence_checker.cc tcp_fsm_test_harness.cc byte_stream_test_harness.cc)
+add_library (spongechecks STATIC send_equivalence_checker.cc tcp_fsm_test_harness.cc byte_stream_test_harness.cc network_interface_test_harness.cc)
 
 macro (add_test_exec exec_name)
     add_executable ("${exec_name}" "${exec_name}.cc")
@@ -52,3 +52,4 @@ add_test_exec (send_retx)
 add_test_exec (send_ack)
 add_test_exec (send_window)
 add_test_exec (send_close)
+add_test_exec (net_interface)

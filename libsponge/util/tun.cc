@@ -12,7 +12,8 @@ static constexpr const char *CLONEDEV = "/dev/net/tun";
 
 using namespace std;
 
-//! \param[in] devname is the name of the TUN device, specified at its creation.
+//! \param[in] devname is the name of the TUN or TAP device, specified at its creation.
+//! \param[in] is_tun is `true` for a TUN device (expects IP datagrams), or `false` for a TAP device (expects Ethernet frames)
 //!
 //! To create a TUN device, you should already have run
 //!
@@ -20,10 +21,11 @@ using namespace std;
 //!
 //! as root before calling this function.
 
-TunFD::TunFD(const string &devname) : FileDescriptor(SystemCall("open", open(CLONEDEV, O_RDWR))) {
+TunTapFD::TunTapFD(const string &devname, const bool is_tun)
+    : FileDescriptor(SystemCall("open", open(CLONEDEV, O_RDWR))) {
     struct ifreq tun_req {};
 
-    tun_req.ifr_flags = IFF_TUN | IFF_NO_PI;  // tun device with no packetinfo
+    tun_req.ifr_flags = (is_tun ? IFF_TUN : IFF_TAP) | IFF_NO_PI;  // tun device with no packetinfo
 
     // copy devname to ifr_name, making sure to null terminate
 

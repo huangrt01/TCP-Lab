@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
         if (listen) {
             udp_sock.bind(c_filt.source);
         }
-        LossyTCPOverUDPSpongeSocket tcp_socket(move(udp_sock));
+        LossyTCPOverUDPSpongeSocket tcp_socket(LossyTCPOverUDPSocketAdapter(TCPOverUDPSocketAdapter(move(udp_sock))));
         if (listen) {
             tcp_socket.listen_and_accept(c_fsm, c_filt);
         } else {

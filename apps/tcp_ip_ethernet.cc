@@ -13,29 +13,25 @@
 
 using namespace std;
 
-constexpr const char *TUN_DFLT = "tun144";
-const string LOCAL_ADDRESS_DFLT = "169.254.144.9";
+constexpr const char *TAP_DFLT = "tap10";
+const string LOCAL_ADDRESS_DFLT = "169.254.10.9";
+const string GATEWAY_DFLT = "169.254.10.1";
 
 static void show_usage(const char *argv0, const char *msg) {
     cout << "Usage: " << argv0 << " [options] <host> <port>\n\n"
          << "   Option                                                          Default\n"
          << "   --                                                              --\n\n"
 
-         << "   -l              Server (listen) mode.                           (client mode)\n"
-         << "                   In server mode, <host>:<port> is the address to bind.\n\n"
-
-         << "   -a <addr>       Set source address (client mode only)           " << LOCAL_ADDRESS_DFLT << "\n"
-         << "   -s <port>       Set source port (client mode only)              (random)\n\n"
+         << "   -a <addr>       Set IP source address (client mode only)        " << LOCAL_ADDRESS_DFLT << "\n"
+         << "   -s <port>       Set TCP source port (client mode only)          (random)\n\n"
+         << "   -n <addr>       Set IP next-hop address                         " << GATEWAY_DFLT << "\n"
 
          << "   -w <winsz>      Use a window of <winsz> bytes                   " << TCPConfig::MAX_PAYLOAD_SIZE
          << "\n\n"
 
          << "   -t <tmout>      Set rt_timeout to tmout                         " << TCPConfig::TIMEOUT_DFLT << "\n\n"
 
-         << "   -d <tundev>     Connect to tun <tundev>                         " << TUN_DFLT << "\n\n"
-
-         << "   -Lu <loss>      Set uplink loss to <rate> (float in 0..1)       (no loss)\n"
-         << "   -Ld <loss>      Set downlink loss to <rate> (float in 0..1)     (no loss)\n\n"
+         << "   -d <tapdev>     Connect to tap <tapdev>                         " << TAP_DFLT << "\n\n"
 
          << "   -h              Show this message.\n\n";
 
@@ -52,23 +48,19 @@ static void check_argc(int argc, char **argv, int curr, const char *err) {
     }
 }
 
-static tuple<TCPConfig, FdAdapterConfig, bool, char *> get_config(int argc, char **argv) {
+static tuple<TCPConfig, FdAdapterConfig, Address, string> get_config(int argc, char **argv) {
     TCPConfig c_fsm{};
     FdAdapterConfig c_filt{};
-    char *tundev = nullptr;
+    string tapdev = TAP_DFLT;
 
     int curr = 1;
-    bool listen = false;
 
     string source_address = LOCAL_ADDRESS_DFLT;
     string source_port = to_string(uint16_t(random_device()()));
+    string next_hop_address = GATEWAY_DFLT;
 
     while (argc - curr > 2) {
-        if (strncmp("-l", argv[curr], 3) == 0) {
-            listen = true;
-            curr += 1;
-
-        } else if (strncmp("-a", argv[curr], 3) == 0) {
+        if (strncmp("-a", argv[curr], 3) == 0) {
             check_argc(argc, argv, curr, "ERROR: -a requires one argument.");
             source_address = argv[curr + 1];
             curr += 2;
@@ -76,6 +68,11 @@ static tuple<TCPConfig, FdAdapterConfig, bool, char *> get_config(int argc, char
         } else if (strncmp("-s", argv[curr], 3) == 0) {
             check_argc(argc, argv, curr, "ERROR: -s requires one argument.");
             source_port = argv[curr + 1];
+            curr += 2;
+
+        } else if (strncmp("-n", argv[curr], 3) == 0) {
+            check_argc(argc, argv, curr, "ERROR: -n requires one argument.");
+            next_hop_address = argv[curr + 1];
             curr += 2;
 
         } else if (strncmp("-w", argv[curr], 3) == 0) {
@@ -90,23 +87,7 @@ static tuple<TCPConfig, FdAdapterConfig, bool, char *> get_config(int argc, char
 
         } else if (strncmp("-d", argv[curr], 3) == 0) {
             check_argc(argc, argv, curr, "ERROR: -t requires one argument.");
-            tundev = argv[curr + 1];
-            curr += 2;
-
-        } else if (strncmp("-Lu", argv[curr], 3) == 0) {
-            check_argc(argc, argv, curr, "ERROR: -Lu requires one argument.");
-            float lossrate = strtof(argv[curr + 1], nullptr);
-            using LossRateUpT = decltype(c_filt.loss_rate_up);
-            c_filt.loss_rate_up =
-                static_cast<LossRateUpT>(static_cast<float>(numeric_limits<LossRateUpT>::max()) * lossrate);
-            curr += 2;
-
-        } else if (strncmp("-Ld", argv[curr], 3) == 0) {
-            check_argc(argc, argv, curr, "ERROR: -Lu requires one argument.");
-            float lossrate = strtof(argv[curr + 1], nullptr);
-            using LossRateDnT = decltype(c_filt.loss_rate_dn);
-            c_filt.loss_rate_dn =
-                static_cast<LossRateDnT>(static_cast<float>(numeric_limits<LossRateDnT>::max()) * lossrate);
+            tapdev = argv[curr + 1];
             curr += 2;
 
         } else if (strncmp("-h", argv[curr], 3) == 0) {
@@ -120,18 +101,12 @@ static tuple<TCPConfig, FdAdapterConfig, bool, char *> get_config(int argc, char
     }
 
     // parse positional command-line arguments
-    if (listen) {
-        c_filt.source = {"0", argv[curr + 1]};
-        if (c_filt.source.port() == 0) {
-            show_usage(argv[0], "ERROR: listen port cannot be zero in server mode.");
-            exit(1);
-        }
-    } else {
-        c_filt.destination = {argv[curr], argv[curr + 1]};
-        c_filt.source = {source_address, source_port};
-    }
+    c_filt.destination = {argv[curr], argv[curr + 1]};
+    c_filt.source = {source_address, source_port};
 
-    return make_tuple(c_fsm, c_filt, listen, tundev);
+    Address next_hop{next_hop_address, "0"};
+
+    return make_tuple(c_fsm, c_filt, next_hop, tapdev);
 }
 
 int main(int argc, char **argv) {
@@ -141,15 +116,20 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        auto [c_fsm, c_filt, listen, tun_dev_name] = get_config(argc, argv);
-        LossyTCPOverIPv4SpongeSocket tcp_socket(LossyTCPOverIPv4OverTunFdAdapter(
-            TCPOverIPv4OverTunFdAdapter(TunFD(tun_dev_name == nullptr ? TUN_DFLT : tun_dev_name))));
-
-        if (listen) {
-            tcp_socket.listen_and_accept(c_fsm, c_filt);
-        } else {
-            tcp_socket.connect(c_fsm, c_filt);
+        // choose a random local Ethernet address (and make sure it's private, i.e. not owned by a manufacturer)
+        EthernetAddress local_ethernet_address;
+        for (auto &byte : local_ethernet_address) {
+            byte = random_device()();  // use a random local Ethernet address
         }
+        local_ethernet_address.at(0) |= 0x02;  // "10" in last two binary digits marks a private Ethernet address
+        local_ethernet_address.at(0) &= 0xfe;
+
+        auto [c_fsm, c_filt, next_hop, tap_dev_name] = get_config(argc, argv);
+
+        TCPOverIPv4OverEthernetSpongeSocket tcp_socket(TCPOverIPv4OverEthernetAdapter(
+            TCPOverIPv4OverEthernetAdapter(TapFD(tap_dev_name), local_ethernet_address, c_filt.source, next_hop)));
+
+        tcp_socket.connect(c_fsm, c_filt);
 
         bidirectional_stream_copy(tcp_socket);
         tcp_socket.wait_until_closed();
