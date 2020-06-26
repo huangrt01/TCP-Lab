@@ -12,7 +12,9 @@
 
 - [ ] Lab 6: the IP router 
 
-[My notes on this lab](https://github.com/huangrt01/CS-Notes/blob/master/Notes/Output/Computer-Networking-Lab-CS144-Stanford.md)
+Pass all the tests of Lab 0-4
+
+[My notes](https://github.com/huangrt01/CS-Notes/blob/master/Notes/Output/Computer-Networking-Lab-CS144-Stanford.md)
 
 For build prereqs, see [the VM setup instructions](https://web.stanford.edu/class/cs144/vm_howto).
 
