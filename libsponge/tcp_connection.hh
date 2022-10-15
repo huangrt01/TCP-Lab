@@ -26,10 +26,10 @@ class TCPConnection {
     bool _clean_shutdown{0};
     bool _unclean_shutdown{0};
 
-    //process TCPSegment basically
+    // process TCPSegment basically
     void popTCPSegment(TCPSegment &seg);
 
-    //test the end of TCP connection
+    // test the end of TCP connection
     void test_end();
 
     // fill queue from _sender.segments_out() to _segments_out

@@ -32,7 +32,7 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     size_t firstUnacceptable = _firstUnassembled + (_capacity - _output.buffer_size());
 
     //不能直接影响_output的情形，储存的数据提前优化处理
-    std::set<typeUnassembled>::iterator iter2;
+    std::set<typeUnassembled>::iterator iter;
     size_t resIndex = index;
     auto resData = std::string(data);
     if (resIndex < _firstUnassembled) {
@@ -41,34 +41,32 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     }
     if (resIndex + resData.size() > firstUnacceptable)
         resData = resData.substr(0, firstUnacceptable - resIndex);
-    
+
     //           | resData |
     //        <---|iter|
-    iter2=_Unassembled.lower_bound(typeUnassembled(resIndex,resData));
-    while(iter2!=_Unassembled.begin()){  
-        //resIndex > _firstUnassembled
-        if(iter2==_Unassembled.end())
-            iter2--;
-        if (size_t deleteNum = merge_substring(resIndex, resData, iter2)) {  //返回值是删掉重合的bytes数
+    iter = _Unassembled.lower_bound(typeUnassembled(resIndex, resData));
+    while (iter != _Unassembled.begin()) {
+        // resIndex > _firstUnassembled
+        if (iter == _Unassembled.end())
+            iter--;
+        if (size_t deleteNum = merge_substring(resIndex, resData, iter)) {  //返回值是删掉重合的bytes数
             _nUnassembled -= deleteNum;
-            if(iter2 !=_Unassembled.begin()){
-                _Unassembled.erase(iter2--);
-            }
-            else{
-                _Unassembled.erase(iter2);
+            if (iter != _Unassembled.begin()) {
+                _Unassembled.erase(iter--);
+            } else {
+                _Unassembled.erase(iter);
                 break;
             }
-        } 
-        else
+        } else
             break;
     }
 
     //         ｜resData |
-    //          | iter2 ... | --->
-    iter2 = _Unassembled.lower_bound(typeUnassembled(resIndex, resData));
-    while(iter2 != _Unassembled.end()){
-        if (size_t deleteNum = merge_substring(resIndex, resData, iter2)) {  //返回值是删掉重合的bytes数
-            _Unassembled.erase(iter2++);
+    //          | iter ... | --->
+    iter = _Unassembled.lower_bound(typeUnassembled(resIndex, resData));
+    while (iter != _Unassembled.end()) {
+        if (size_t deleteNum = merge_substring(resIndex, resData, iter)) {  //返回值是删掉重合的bytes数
+            _Unassembled.erase(iter++);
             _nUnassembled -= deleteNum;
         } else
             break;
@@ -89,10 +87,10 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
     }
     return;
 }
-int StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2) {
+int StreamReassembler::merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter) {
     // return value: 1:successfully merge; 0:fail to merge
-    std::string data2 = (*iter2).data;
-    size_t l2 = (*iter2).index, r2 = l2 + data2.size() - 1;
+    std::string data2 = (*iter).data;
+    size_t l2 = (*iter).index, r2 = l2 + data2.size() - 1;
     size_t l1 = index, r1 = l1 + data.size() - 1;
     if (l2 > r1 + 1 || l1 > r2 + 1)
         return 0;

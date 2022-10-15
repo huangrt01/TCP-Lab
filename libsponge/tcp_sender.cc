@@ -39,21 +39,21 @@ void TCPSender::fill_window() {
     if (_next_seqno == 0) {
         // state is CLOSE, need to send SYN
         seg.header().syn = 1;
-        _syn_sent=1;
+        _syn_sent = 1;
         send_non_empty_segment(seg);
         return;
     } else if (_next_seqno == _nBytes_inflight) {
         // state is SYN SENT, don't send SYN
         return;
-    } 
+    }
 
-    //send multiple non-empty segments
+    // send multiple non-empty segments
     uint16_t win = _window_size;
     if (_window_size == 0)
         win = 1;  // zero window probing
 
     uint64_t remaining;
-    while ((remaining = static_cast<uint64_t>(win) + (_recv_ackno - _next_seqno))){
+    while ((remaining = static_cast<uint64_t>(win) + (_recv_ackno - _next_seqno))) {
         // FIN flag occupies space in window
         TCPSegment newseg;
         if (_stream.eof() && !_fin_sent) {
@@ -83,11 +83,11 @@ void TCPSender::fill_window() {
 bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
     uint64_t abs_ackno = unwrap(ackno, _isn, _recv_ackno);
-    if (ackno - next_seqno() > 0){
+    if (ackno - next_seqno() > 0) {
         return 0;
     }
     _window_size = window_size;
-    if (abs_ackno - _recv_ackno <= 0){
+    if (abs_ackno - _recv_ackno <= 0) {
         return 1;
     }
 
@@ -97,7 +97,7 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     _consecutive_retransmissions = 0;
 
     //删掉fully-acknowledged segments
-    TCPSegment tempSeg; 
+    TCPSegment tempSeg;
     while (!_segments_outstanding.empty()) {
         tempSeg = _segments_outstanding.front();
         if (ackno - tempSeg.header().seqno >= static_cast<int32_t>(tempSeg.length_in_sequence_space())) {
@@ -120,7 +120,7 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     size_t time_left = ms_since_last_tick;
-    if(_timer.tick(time_left)){
+    if (_timer.tick(time_left)) {
         // remove fill_the_window(), fix the test fsm_retx_relaxed
         // timer has expired
         // retransmit at most ONE outstanding segment
@@ -132,18 +132,18 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
                 _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy
                                    // networks to avoid further gumming up the works
             }
-            if(!_timer.open()) //[RFC6298](5.1)
+            if (!_timer.open())  //[RFC6298](5.1)
                 _timer.start();
-            if (syn_sent() && (_next_seqno == _nBytes_inflight)){
-                //SYN_SENT, [RFC6298](5.7)
-                if(_timer._RTO < _timer._initial_RTO){
+            if (syn_sent() && (_next_seqno == _nBytes_inflight)) {
+                // SYN_SENT, [RFC6298](5.7)
+                if (_timer._RTO < _timer._initial_RTO) {
                     _timer._RTO = _timer._initial_RTO;
                 }
             }
         }
         if (_segments_outstanding.empty())
             _timer.close();
-    }  
+    }
 }
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retransmissions; }
@@ -154,12 +154,13 @@ void TCPSender::send_empty_segment() {
     _segments_out.push(seg);
 }
 
-void TCPSender::send_non_empty_segment(TCPSegment &seg){
+void TCPSender::send_non_empty_segment(TCPSegment &seg) {
     seg.header().seqno = wrap(_next_seqno, _isn);
 
     _next_seqno += seg.length_in_sequence_space();
     _nBytes_inflight += seg.length_in_sequence_space();
-    //std::cerr << "send non empty: " << seg.header().to_string() << "length:" << seg.length_in_sequence_space() << endl << endl;
+    // std::cerr << "send non empty: " << seg.header().to_string() << "length:" << seg.length_in_sequence_space() <<
+    // endl << endl;
     _segments_out.push(seg);
     _segments_outstanding.push(seg);
 

@@ -43,9 +43,7 @@ void ByteStream::pop_output(const size_t len) {
     _nread += l;
 }
 
-void ByteStream::end_input() {
-    _input_ended = 1;
-}
+void ByteStream::end_input() { _input_ended = 1; }
 
 bool ByteStream::input_ended() const { return _input_ended; }
 
@@ -53,7 +51,7 @@ size_t ByteStream::buffer_size() const { return _size; }
 
 bool ByteStream::buffer_empty() const { return _size == 0; }
 
-bool ByteStream::eof() const { return input_ended()&&buffer_empty(); }
+bool ByteStream::eof() const { return input_ended() && buffer_empty(); }
 
 size_t ByteStream::bytes_written() const { return _nwritten; }
 

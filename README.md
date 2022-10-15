@@ -71,7 +71,7 @@ The following targets are supported:
 
 Of course, you can combine all of the above, e.g.,
 
-    $ CLANG_TIDY=clang-tidy-6.0 CXX=clang++-6.0 .. -DCMAKE_BUILD_TYPE=Debug
+    $ CLANG_TIDY=clang-tidy-6.0 CXX=clang++-6.0 cmake .. -DCMAKE_BUILD_TYPE=Debug
 
 **Note:** if you want to change `CC`, `CXX`, `CLANG_TIDY`, or `CLANG_FORMAT`, you need to remove
 `build/CMakeCache.txt` and re-run cmake. (This isn't necessary for `CMAKE_BUILD_TYPE`.)

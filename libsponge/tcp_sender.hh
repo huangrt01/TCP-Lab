@@ -54,11 +54,10 @@ class TCPRetransmissionTimer {
     bool tick(size_t &ms_since_last_tick) {
         if (!open())
             return 0;
-        if(ms_since_last_tick > _RTO - _TO){
+        if (ms_since_last_tick > _RTO - _TO) {
             ms_since_last_tick -= (_RTO - _TO);
-            _TO=_RTO;
-        }
-        else{
+            _TO = _RTO;
+        } else {
             _TO += ms_since_last_tick;
             ms_since_last_tick = 0;
         }
@@ -107,7 +106,6 @@ class TCPSender {
 
     //! the flag of FIN sent
     bool _fin_sent;
-
 
   public:
     //! Initialize a TCPSender
@@ -168,9 +166,9 @@ class TCPSender {
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
 
-    bool syn_sent() const {return _syn_sent;}
+    bool syn_sent() const { return _syn_sent; }
 
-    bool fin_sent() const {return _fin_sent;}
+    bool fin_sent() const { return _fin_sent; }
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
