@@ -21,13 +21,15 @@ class typeUnassembled {
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    // Your code here -- add private members as necessary.
     ByteStream _output;  //!< The reassembled in-order byte stream
     std::set<typeUnassembled> _Unassembled;
     size_t _firstUnassembled;
     size_t _nUnassembled;
     size_t _capacity;  //!< The maximum number of bytes
     bool _eof;
+
+    // 合并两个_Unassembled的子串，利用iter更新index和data信息，并删除iter
+    int merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
@@ -46,9 +48,6 @@ class StreamReassembler {
     //! \param index the index of the first byte in `data`
     //! \param eof whether or not this segment ends with the end of the stream
     void push_substring(const std::string &data, const uint64_t index, const bool eof);
-
-    // 合并两个_Unassembled的子串，利用iter2更新index和data信息，并删除iter2
-    int merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter2);
 
     //! \name Access the reassembled byte stream
     //!@{

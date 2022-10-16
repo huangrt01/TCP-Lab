@@ -22,7 +22,7 @@ class TCPConnection {
     bool _linger_after_streams_finish{true};
     size_t _ms_since_last_segment_received{0};
 
-    // TODO: use the _connect_initiated
+    // TODO(huangruiteng): use the _connect_initiated
     // bool _connect_initiated{0};
     bool _rst{0};
     bool _clean_shutdown{0};
