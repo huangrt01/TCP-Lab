@@ -13,6 +13,8 @@ endif ()
 if (${IS_CLANG_COMPILER})
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wloop-analysis")
 endif ()
+# for libsponge/util/parser::NetParser::u8()
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-shift-count-overflow")
 
 # add some flags for the Release, Debug, and DebugSan modes
 set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")

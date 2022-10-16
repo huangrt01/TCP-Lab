@@ -65,7 +65,7 @@ void TCPSender::fill_window() {
             return;
         else {  // SYN_ACKED
             size_t size = min(static_cast<size_t>(remaining), TCPConfig::MAX_PAYLOAD_SIZE);
-            newseg.payload() = Buffer(std::move(_stream.read(size)));
+            newseg.payload() = Buffer(_stream.read(size));
             if (newseg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
                 newseg.header().fin = 1;
                 _fin_sent = 1;
