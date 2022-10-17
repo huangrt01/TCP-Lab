@@ -29,7 +29,7 @@ class StreamReassembler {
     bool _eof;
 
     // 合并两个_Unassembled的子串，利用iter更新index和data信息，并删除iter
-    int merge_substring(size_t &index, std::string &data, std::set<typeUnassembled>::iterator iter);
+    int merge_substring(size_t &index, std::string &data, size_t index2, const std::string &data2);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
