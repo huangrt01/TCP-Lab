@@ -17,13 +17,12 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 ByteStream::ByteStream(const size_t capacity)
-    : _stream(), _size(0), _capacity(capacity), _nwritten(0), _nread(0), _input_ended(0) {}
+    : _size(0), _capacity(capacity), _nwritten(0), _nread(0), _input_ended(0) {}
 
 size_t ByteStream::write(const string &data) {
     size_t l = min(remaining_capacity(), data.size());
-    for (size_t i = 0; i < l; i++) {
-        _stream.emplace_back(data[i]);
-    }
+    std::string tmp = data.substr(0, l);
+    _stream_buffer.append(BufferList(std::move(tmp)));
     _size += l;
     _nwritten += l;
     return l;
@@ -31,15 +30,13 @@ size_t ByteStream::write(const string &data) {
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
-    return string(_stream.begin(), _stream.begin() + min(len, _size));
+    return _stream_buffer.concatenate(min(len, _size));
 }
 
 //! \param[in] len bytes will be removed from the output side of the buffer
 void ByteStream::pop_output(const size_t len) {
     size_t l = min(len, _size);
-    for (size_t i = 0; i < l; i++) {
-        _stream.pop_front();
-    }
+    _stream_buffer.remove_prefix(l);
     _size -= l;
     _nread += l;
 }

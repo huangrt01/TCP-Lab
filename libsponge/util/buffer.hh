@@ -91,6 +91,9 @@ class BufferList {
 
     //! \brief Make a copy to a new std::string
     std::string concatenate() const;
+
+    //! \brief Make a copy to a new std::string with the first n chars
+    std::string concatenate(size_t n) const;
 };
 
 //! \brief A non-owning temporary view (similar to std::string_view) of a discontiguous string

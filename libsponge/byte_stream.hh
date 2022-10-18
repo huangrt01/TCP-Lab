@@ -8,6 +8,8 @@
 #include <string>
 #include <utility>
 
+#include "buffer.hh"
+
 //! \brief An in-order byte stream.
 
 //! Bytes are written on the "input" side and read from the "output"
@@ -16,7 +18,7 @@
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
-    std::deque<char> _stream;
+    BufferList _stream_buffer{};
     size_t _size;
     size_t _capacity;
     size_t _nwritten;

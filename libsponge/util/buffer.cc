@@ -40,6 +40,19 @@ string BufferList::concatenate() const {
     return ret;
 }
 
+string BufferList::concatenate(size_t n) const {
+    std::string ret;
+    ret.reserve(n);
+    for (const auto &buf : _buffers) {
+        if (ret.size() + buf.size() <= n) {
+            ret.append(buf);
+        } else {
+            ret.append(buf.str().begin(), buf.str().begin() + n - ret.size());
+        }
+    }
+    return ret;
+}
+
 size_t BufferList::size() const {
     size_t ret = 0;
     for (const auto &buf : _buffers) {
