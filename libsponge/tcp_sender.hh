@@ -33,27 +33,28 @@ class TCPRetransmissionTimer {
 
     //! Initialize a TCP retransmission timer
     TCPRetransmissionTimer(const uint16_t retx_timeout)
-        : _initial_RTO(retx_timeout), _RTO(retx_timeout), _TO(0), _open(1) {}
+        : _initial_RTO(retx_timeout), _RTO(retx_timeout), _TO(0), _open(true) {}
 
     //! state of the timer
     bool open() { return _open; }
 
     //! start the timer
     void start() {
-        _open = 1;
+        _open = true;
         _TO = 0;
     }
 
     //! close the timer
     void close() {
-        _open = 0;
+        _open = false;
         _TO = 0;
     }
 
     //! tick
     bool tick(size_t &ms_since_last_tick) {
-        if (!open())
-            return 0;
+        if (!open()) {
+            return false;
+        }
         if (ms_since_last_tick > _RTO - _TO) {
             ms_since_last_tick -= (_RTO - _TO);
             _TO = _RTO;
@@ -63,9 +64,9 @@ class TCPRetransmissionTimer {
         }
         if (_TO >= _RTO) {
             _TO = 0;
-            return 1;  // the retransmission timer has expired.
+            return true;  // the retransmission timer has expired.
         }
-        return 0;
+        return false;
     }
 };
 
@@ -107,6 +108,9 @@ class TCPSender {
     //! the flag of FIN sent
     bool _fin_sent;
 
+    //! \brief Generate an non-empty segment
+    void send_non_empty_segment(TCPSegment &seg);
+
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
@@ -127,9 +131,6 @@ class TCPSender {
 
     //! \brief Generate an empty-payload segment (useful for creating empty ACK segments)
     void send_empty_segment();
-
-    //! \brief Generate an non-empty segment
-    void send_non_empty_segment(TCPSegment &seg);
 
     //! \brief create and send segments to fill as much of the window as possible
     void fill_window();

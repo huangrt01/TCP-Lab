@@ -47,33 +47,30 @@ void TCPSender::fill_window() {
         return;
     }
 
-    // send multiple non-empty segments
-    uint16_t win = _window_size;
-    if (_window_size == 0)
-        win = 1;  // zero window probing
-
+    // zero window probing
+    uint16_t window_size = _window_size ? _window_size : 1;
     uint64_t remaining;
-    while ((remaining = static_cast<uint64_t>(win) + (_recv_ackno - _next_seqno))) {
+    while ((remaining = static_cast<uint64_t>(window_size) + (_recv_ackno - _next_seqno))) {
         // FIN flag occupies space in window
-        TCPSegment newseg;
+        TCPSegment new_seg;
         if (_stream.eof() && !_fin_sent) {
-            newseg.header().fin = 1;
+            new_seg.header().fin = 1;
             _fin_sent = 1;
-            send_non_empty_segment(newseg);
+            send_non_empty_segment(new_seg);
             return;
-        } else if (_stream.eof())
+        } else if (_stream.eof()) {
             return;
-        else {  // SYN_ACKED
-            size_t size = min(static_cast<size_t>(remaining), TCPConfig::MAX_PAYLOAD_SIZE);
-            newseg.payload() = Buffer(_stream.read(size));
-            if (newseg.length_in_sequence_space() < win && _stream.eof()) {  // piggy-back FIN
-                newseg.header().fin = 1;
-                _fin_sent = 1;
-            }
-            if (newseg.length_in_sequence_space() == 0)
-                return;
-            send_non_empty_segment(newseg);
         }
+        size_t size = min(static_cast<size_t>(remaining), TCPConfig::MAX_PAYLOAD_SIZE);
+        new_seg.payload() = Buffer(_stream.read(size));
+        if (new_seg.length_in_sequence_space() < window_size && _stream.eof()) {  // piggy-back FIN
+            new_seg.header().fin = 1;
+            _fin_sent = 1;
+        }
+        if (new_seg.length_in_sequence_space() == 0) {
+            return;
+        }
+        send_non_empty_segment(new_seg);
     }
 }
 
@@ -81,30 +78,31 @@ void TCPSender::fill_window() {
 //! \param window_size The remote receiver's advertised window size
 //! \returns `false` if the ackno appears invalid (acknowledges something the TCPSender hasn't sent yet)
 bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
-    uint64_t abs_ackno = unwrap(ackno, _isn, _recv_ackno);
     if (ackno - next_seqno() > 0) {
-        return 0;
+        return false;
     }
+    //如果window_size为0，需要记录下来，"zero window probing", 影响tick()和fill_window()的行为
     _window_size = window_size;
-    if (abs_ackno - _recv_ackno <= 0) {
-        return 1;
+    uint64_t abs_ackno = unwrap(ackno, _isn, _recv_ackno);
+    if (abs_ackno <= _recv_ackno) {
+        return true;
     }
 
     _recv_ackno = abs_ackno;
     // acknowledges the successful receipt of new data
     _timer._RTO = _timer._initial_RTO;
+    _timer._TO = 0;
     _consecutive_retransmissions = 0;
 
-    //删掉fully-acknowledged segments
-    TCPSegment tempSeg;
+    // deque fully-acknowledged segments
     while (!_segments_outstanding.empty()) {
-        tempSeg = _segments_outstanding.front();
-        if (ackno - tempSeg.header().seqno >= static_cast<int32_t>(tempSeg.length_in_sequence_space())) {
-            _nBytes_inflight -= tempSeg.length_in_sequence_space();
+        const auto &seg = _segments_outstanding.front();
+        if (ackno - seg.header().seqno >= static_cast<int32_t>(seg.length_in_sequence_space())) {
+            _nBytes_inflight -= seg.length_in_sequence_space();
             _segments_outstanding.pop();
-        } else
+        } else {
             break;
+        }
     }
 
     // fill the window
@@ -112,18 +110,18 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
     // any outstanding segment, restart the timer.
     // [RFC6298](5.3)
-    if (!_segments_outstanding.empty())
+    if (!_segments_outstanding.empty()) {
         _timer.start();
-    return 1;
+    }
+    return true;
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
     size_t time_left = ms_since_last_tick;
     if (_timer.tick(time_left)) {
-        // remove fill_the_window(), fix the test fsm_retx_relaxed
-        // timer has expired
-        // retransmit at most ONE outstanding segment
+        // Notice: remove fill_the_window() here to fix the test fsm_retx_relaxed
+        // timer has expired, retransmit at most ONE outstanding segment
         if (!_segments_outstanding.empty()) {
             // retransmit the outstanding segment with the lowest sequence number
             _segments_out.push(_segments_outstanding.front());
@@ -132,17 +130,16 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
                 _timer._RTO *= 2;  // double the RTO, exponential backoff, it slows down retransmissions on lousy
                                    // networks to avoid further gumming up the works
             }
-            if (!_timer.open())  //[RFC6298](5.1)
+            if (!_timer.open()) {  //[RFC6298](5.1)
                 _timer.start();
-            if (syn_sent() && (_next_seqno == _nBytes_inflight)) {
-                // SYN_SENT, [RFC6298](5.7)
-                if (_timer._RTO < _timer._initial_RTO) {
-                    _timer._RTO = _timer._initial_RTO;
-                }
+            }
+            if (syn_sent() && (_next_seqno == _nBytes_inflight) && (_timer._RTO < 3000)) {
+                _timer._RTO = 3000;  // SYN_SENT, [RFC6298](5.7)
             }
         }
-        if (_segments_outstanding.empty())
+        if (_segments_outstanding.empty()) {
             _timer.close();
+        }
     }
 }
 
@@ -165,6 +162,7 @@ void TCPSender::send_non_empty_segment(TCPSegment &seg) {
     _segments_outstanding.push(seg);
 
     // [RFC6298]:(5.1)
-    if (!_timer.open())
+    if (!_timer.open()) {
         _timer.start();
+    }
 }
