@@ -28,9 +28,6 @@ class TCPConnection {
     bool _clean_shutdown{0};
     bool _unclean_shutdown{0};
 
-    // process TCPSegment basically
-    void popTCPSegment(TCPSegment &seg);
-
     // test the end of TCP connection
     void test_end();
 
