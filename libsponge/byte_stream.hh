@@ -1,14 +1,14 @@
 #ifndef SPONGE_LIBSPONGE_BYTE_STREAM_HH
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
+#include "buffer.hh"
+
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <list>
 #include <string>
 #include <utility>
-
-#include "buffer.hh"
 
 //! \brief An in-order byte stream.
 

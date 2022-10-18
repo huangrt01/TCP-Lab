@@ -32,8 +32,9 @@ uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
     uint32_t offset = n - wrap(checkpoint, isn);
     uint64_t ret = checkpoint + offset;
     // 取距离checkpoint最近的值，因此需要判断是否左移ret
-    //注意位置不够左移的情形！！！
-    if (offset >= (1u << 31) && ret >= (1ul << 32))
+    // 注意位置不够左移的情形！！！
+    if (offset >= (1u << 31) && ret >= (1ul << 32)) {
         ret -= (1ul << 32);
+    }
     return ret;
 }
