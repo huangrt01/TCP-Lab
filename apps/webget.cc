@@ -7,7 +7,7 @@
 using namespace std;
 
 void get_URL(const string &host, const string &path) {
-    CS144TCPSocket sock{};
+    FullStackSocket sock{};
     sock.connect(Address(host, "http"));
     string input("GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n");
     sock.write(input);
@@ -16,11 +16,11 @@ void get_URL(const string &host, const string &path) {
     // the server will wait around for a while for you to send
     // additional requests and won’t end its outgoing byte stream either.
     sock.shutdown(SHUT_WR);
-    while (!sock.eof())
+    while (!sock.eof()) {
         cout << sock.read();
-    sock.close();
+    }
 
-    // the Linux kernel takes care of waiting forTCP connections to reach “clean shutdown” (
+    // the Linux kernel takes care of waiting for TCP connections to reach “clean shutdown” (
     // and give up their port reservations) even after user processes have exited.
     // because CS144TCP implementation is all in user space,
     // there’s nothing else to keep track of the connection state except using this call waiting until
