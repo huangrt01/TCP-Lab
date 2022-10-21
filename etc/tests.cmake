@@ -38,6 +38,8 @@ add_test(NAME t_webget               COMMAND "${PROJECT_SOURCE_DIR}/tests/webget
 
 add_test(NAME arp_network_interface    COMMAND net_interface)
 
+add_test(NAME router_test    COMMAND network_simulator)
+
 add_test(NAME t_tcp_parser           COMMAND tcp_parser "${PROJECT_SOURCE_DIR}/tests/ipv4_parser.data")
 add_test(NAME t_ipv4_parser          COMMAND ipv4_parser "${PROJECT_SOURCE_DIR}/tests/ipv4_parser.data")
 add_test(NAME t_active_close         COMMAND fsm_active_close)
@@ -224,8 +226,10 @@ add_custom_target (check_lab4 COMMAND "${PROJECT_SOURCE_DIR}/tun.sh" check 144 1
 add_custom_target (check_lab5 COMMAND "${PROJECT_SOURCE_DIR}/tap.sh" check 10
                               COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --timeout 10 -R '^t_webget|^arp_'
                               COMMENT "Testing Lab 5...")
+add_custom_target (check_lab6 COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --timeout 10 -R '^arp_|^router_'
+                              COMMENT "Testing Lab 6...")
 
 add_custom_target (check COMMAND "${PROJECT_SOURCE_DIR}/tun.sh" check 144 145
                          COMMAND "${PROJECT_SOURCE_DIR}/tap.sh" check 10
-                         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --timeout 10 -R '^t_|^arp_'
+                         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --timeout 10 -R '^t_|^arp_|^router_'
                          COMMENT "Testing libsponge...")

@@ -33,7 +33,7 @@ class Address {
     Address(const std::string &hostname, const std::string &service);
 
     //! Construct from dotted-quad string ("18.243.0.1") and numeric port.
-    Address(const std::string &ip, const std::uint16_t port);
+    Address(const std::string &ip, const std::uint16_t port = 0);
 
     //! Construct from a [sockaddr *](@ref man7::socket).
     Address(const sockaddr *addr, const std::size_t size);
@@ -53,6 +53,8 @@ class Address {
     uint16_t port() const { return ip_port().second; }
     //! Numeric IP address as an integer (i.e., in [host byte order](\ref man3::byteorder)).
     uint32_t ipv4_numeric() const;
+    //! Create an Address from a 32-bit raw numeric IP address
+    static Address from_ipv4_numeric(const uint32_t ip_address);
     //! Human-readable string, e.g., "8.8.8.8:53".
     std::string to_string() const;
     //!@}

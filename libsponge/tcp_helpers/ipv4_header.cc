@@ -152,7 +152,7 @@ std::string IPv4Header::summary() const {
     stringstream ss{};
     ss << hex << boolalpha << "IPv" << +ver << ", "
        << "len=" << +len << ", "
-       << "protocol=" << +proto << ", "
+       << "protocol=" << +proto << ", " << (ttl >= 10 ? "" : "ttl=" + ::to_string(ttl) + ", ")
        << "src=" << inet_ntoa({htobe32(src)}) << ", "
        << "dst=" << inet_ntoa({htobe32(dst)});
     return ss.str();
