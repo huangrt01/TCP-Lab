@@ -5,6 +5,7 @@
 #include "tcp_over_ip.hh"
 #include "tun.hh"
 
+#include <map>
 #include <optional>
 #include <queue>
 
@@ -25,10 +26,12 @@
 //! requests with the [Address Resolution Protocol](\ref rfc::rfc826).
 //! In the opposite direction, the network interface accepts Ethernet
 //! frames, checks if they are intended for it, and if so, processes
-//! the the payload depending on its type. If it's an IPv4 datagram,
+//! the payload depending on its type. If it's an IPv4 datagram,
 //! the network interface passes it up the stack. If it's an ARP
 //! request or reply, the network interface processes the frame
 //! and learns or replies as necessary.
+
+class DgramsInfo;
 class NetworkInterface {
   private:
     //! Ethernet (known as hardware, network-access-layer, or link-layer) address of the interface
@@ -40,7 +43,25 @@ class NetworkInterface {
     //! outbound queue of Ethernet frames that the NetworkInterface wants sent
     std::queue<EthernetFrame> _frames_out{};
 
+    struct ARPEntry {
+        EthernetAddress eth_addr;
+        size_t time_ms_to_delete = ARP_ENTRY_DEFAULT_TTL_MS;
+        ARPEntry() = default;
+        ARPEntry(const EthernetAddress &eth_addr) : eth_addr(eth_addr) {}
+    };
+
+    //!
+    std::map<uint32_t, ARPEntry> _arp_table;
+
+    //! <ipv4_numeric -> dgram>, the dgrams that are waiting ARP reply
+    std::map<uint32_t, DgramsInfo> _dgrams_info_waiting_for_arp_reply;
+
+    void send_arp_request(const uint32_t next_hop_ip);
+
   public:
+    static const size_t ARP_ENTRY_DEFAULT_TTL_MS = 30 * 1000;
+    static const size_t ARP_RESPONSE_DEFAULT_TTL_MS = 5 * 1000;
+
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses
     NetworkInterface(const EthernetAddress &ethernet_address, const Address &ip_address);
 
@@ -62,6 +83,14 @@ class NetworkInterface {
 
     //! \brief Called periodically when time elapses
     void tick(const size_t ms_since_last_tick);
+};
+
+class DgramsInfo {
+  public:
+    std::vector<InternetDatagram> dgrams;
+    size_t time_ms_to_retry = NetworkInterface::ARP_RESPONSE_DEFAULT_TTL_MS;
+
+    DgramsInfo() {}
 };
 
 #endif  // SPONGE_LIBSPONGE_NETWORK_INTERFACE_HH

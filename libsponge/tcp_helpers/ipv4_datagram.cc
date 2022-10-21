@@ -10,7 +10,10 @@ using namespace std;
 
 ParseResult IPv4Datagram::parse(const Buffer buffer) {
     NetParser p{buffer};
-    _header.parse(p);
+    auto parse_result = _header.parse(p);
+    if (parse_result != ParseResult::NoError) {
+        p.set_error(parse_result);
+    }
     _payload = p.buffer();
 
     if (_payload.size() != _header.payload_length()) {
