@@ -20,7 +20,7 @@ class AsyncNetworkInterface : public NetworkInterface {
     //! Construct from a NetworkInterface
     AsyncNetworkInterface(NetworkInterface &&interface) : NetworkInterface(interface) {}
 
-    //! \brief Receives and Ethernet frame and responds appropriately.
+    //! \brief Receives Ethernet frame and responds appropriately.
 
     //! - If type is IPv4, pushes to the `datagrams_out` queue for later retrieval by the owner.
     //! - If type is ARP request, learn a mapping from the "sender" fields, and send an ARP reply.
@@ -48,6 +48,15 @@ class Router {
     //! as specified by the route with the longest prefix_length that matches the
     //! datagram's destination address.
     void route_one_datagram(InternetDatagram &dgram);
+
+    struct RouteEntry {
+        const uint32_t route_prefix;
+        const uint8_t prefix_length;
+        const std::optional<Address> next_hop;
+        const size_t interface_num;
+    };
+
+    std::vector<RouteEntry> _route_table;
 
   public:
     //! Add an interface to the router
