@@ -51,7 +51,7 @@ void Router::route_one_datagram(InternetDatagram &dgram) {
     if (cur_route) {
         auto next_hop = cur_route->next_hop.has_value() ? cur_route->next_hop.value()
                                                         : Address::from_ipv4_numeric(dgram.header().dst);
-        cerr << "DEBUG: select interface " << cur_route->interface_num << ", next hop: " << next_hop.ip() << "\n";
+        // cerr << "DEBUG: select interface " << cur_route->interface_num << ", next hop: " << next_hop.ip() << "\n";
         interface(cur_route->interface_num).send_datagram(dgram, next_hop);
     }
 }
