@@ -17,7 +17,7 @@ class Address {
     class Raw {
       public:
         sockaddr_storage storage{};  //!< The wrapped struct itself.
-        operator sockaddr *();
+        operator sockaddr *(); // convert to a pointer
         operator const sockaddr *() const;
     };
 

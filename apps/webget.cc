@@ -8,18 +8,38 @@ using namespace std;
 
 void get_URL(const string &host, const string &path) {
     // Your code here.
+    TCPSocket sck{};
 
     // You will need to connect to the "http" service on
     // the computer whose name is in the "host" string,
     // then request the URL path given in the "path" string.
+    sck.connect(Address(host, "http"));
+
+#if 1
+    // 注意大小写！！！
+    string get_request("GET " + path + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
+    // string get_request("Get " + path + " HTTP/1.1\r\n" + "Host: " + host + "\r\n\r\n");
+    sck.write(get_request);
+
 
     // Then you'll need to print out everything the server sends back,
     // (not just one call to read() -- everything) until you reach
     // the "eof" (end of file).
+    // sck.shutdown(SHUT_WR);
+    while(!sck.eof())
+        cout << sck.read();
 
-    cerr << "Function called: get_URL(" << host << ", " << path << ").\n";
-    cerr << "Warning: get_URL() has not been implemented yet.\n";
+    sck.close();
+    // 别TM自己瞎加打印！！！
+    // if (sck.closed()) {
+    //     cout << "[Tip] Connection closed by foreign host" << endl;
+    //     return;
+    // }
+#endif
+
 }
+
+
 
 int main(int argc, char *argv[]) {
     try {

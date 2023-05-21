@@ -61,6 +61,7 @@ class FileDescriptor {
     //! Read up to `limit` bytes into `str` (caller can allocate storage)
     void read(std::string &str, const size_t limit = std::numeric_limits<size_t>::max());
 
+
     //! Write a string, possibly blocking until all is written
     size_t write(const char *str, const bool write_all = true) { return write(BufferViewList(str), write_all); }
 
@@ -69,6 +70,7 @@ class FileDescriptor {
 
     //! Write a buffer (or list of buffers), possibly blocking until all is written
     size_t write(BufferViewList buffer, const bool write_all = true);
+
 
     //! Close the underlying file descriptor
     void close() { _internal_fd->close(); }
