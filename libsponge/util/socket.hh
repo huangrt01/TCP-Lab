@@ -47,6 +47,9 @@ class Socket : public FileDescriptor {
     void set_reuseaddr();
 };
 
+
+
+
 //! A wrapper around [UDP sockets](\ref man7::udp)
 class UDPSocket : public Socket {
   protected:
@@ -84,6 +87,10 @@ class UDPSocket : public Socket {
 //!
 //! \include socket_example_1.cc
 
+
+
+
+
 //! A wrapper around [TCP sockets](\ref man7::tcp)
 class TCPSocket : public Socket {
   private:
@@ -108,6 +115,12 @@ class TCPSocket : public Socket {
 //! Example:
 //!
 //! \include socket_example_2.cc
+
+
+
+
+
+
 
 //! A wrapper around [Unix-domain stream sockets](\ref man7::unix)
 class LocalStreamSocket : public Socket {
