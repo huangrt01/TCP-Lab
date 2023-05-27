@@ -7,6 +7,7 @@
 #include <list>
 #include <string>
 #include <utility>
+#include <map>
 
 //! \brief An in-order byte stream.
 
