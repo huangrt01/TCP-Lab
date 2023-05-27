@@ -1,4 +1,4 @@
-For build prereqs, see [the CS144 VM setup instructions](https://web.stanford.edu/class/cs144/vm_howto).
+Git operate: https://docs.github.com/en/get-started/using-git/about-git
 
 ## Sponge quickstart
 
