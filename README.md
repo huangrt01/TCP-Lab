@@ -1,5 +1,16 @@
 Git operate: https://docs.github.com/en/get-started/using-git/about-git
 
+git branch -r lab1
+git checkout lab1
+git add 
+git commit -m ""
+git push --set-upstream origin lab1
+----------------------------------------------
+git clone git@github.com:niuppp-chy/CS144-TCP-Lab.git
+git checkout 02a9099697b1a8cf04b4b0a6b192197ccf84ecd5 // 拉取想要的分支
+git merge origin/lab1 // 将之前的代码合进来
+
+
 ## Sponge quickstart
 
 To set up your build directory:
